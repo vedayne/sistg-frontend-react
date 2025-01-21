@@ -677,7 +677,11 @@ export const apiClient = {
       })
     },
     getMySchedules: async () => apiClient.request<{ ok: boolean; data: AdmEntrega[] }>("/entregas/mis-cronogramas", {}),
+    getMyDeliveries: async () =>
+      apiClient.request<{ ok: boolean; data: EntregaDetalle[] }>("/entregas/mis-entregas", {}),
     getMySubmission: async (idAdmEntrega: number) =>
+      apiClient.request<{ ok: boolean; data: EntregaDetalle }>(`/entregas/mis-entregas/${idAdmEntrega}`, {}),
+    getMyEntrega: async (idAdmEntrega: number) =>
       apiClient.request<{ ok: boolean; data: EntregaDetalle }>(`/entregas/mis-entregas/${idAdmEntrega}`, {}),
     getPending: async () => apiClient.request<{ ok: boolean; data: EntregaDetalle[] }>("/entregas/pendientes", {}),
     getBySchedule: async (idAdmEntrega: number) =>

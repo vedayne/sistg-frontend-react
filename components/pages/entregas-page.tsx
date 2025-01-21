@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/auth-context"
 import type {
   AdmEntrega,
   DocenteBasicInfo,
+  EntregaDetalle,
   EstudianteBasicInfo,
   Gestion,
   Pagination,
@@ -31,11 +32,20 @@ export default function EntregasPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pagination, setPagination] = useState<Pagination | null>(null)
-  const isStudent = (user?.roles ?? []).some((role) => role.name === "ESTUDIANTE")
+  const hasRole = (roleName: string) =>
+    (user?.roles ?? []).some((role: any) =>
+      typeof role === "string" ? role === roleName : role?.name === roleName,
+    )
+  const isStudent = hasRole("ESTUDIANTE")
+  const isReviewer = ["DOCENTETG", "TUTOR", "REVISOR", "REVISOR1", "REVISOR2"].some((role) =>
+    hasRole(role),
+  )
   const [studentProject, setStudentProject] = useState<ProjectResponseDto | null>(null)
   const [mySchedules, setMySchedules] = useState<AdmEntrega[]>([])
   const [mySchedulesLoading, setMySchedulesLoading] = useState(false)
   const [mySchedulesError, setMySchedulesError] = useState<string | null>(null)
+  const [myDeliveries, setMyDeliveries] = useState<EntregaDetalle[]>([])
+  const [myDeliveriesLoading, setMyDeliveriesLoading] = useState(false)
   const [showCronogramasModal, setShowCronogramasModal] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>("")
@@ -44,8 +54,10 @@ export default function EntregasPage() {
   const [uploadMessage, setUploadMessage] = useState("")
   const wordInputRef = useRef<HTMLInputElement | null>(null)
   const pdfInputRef = useRef<HTMLInputElement | null>(null)
+  const reviewInputRef = useRef<HTMLInputElement | null>(null)
   const [wordDragActive, setWordDragActive] = useState(false)
   const [pdfDragActive, setPdfDragActive] = useState(false)
+  const [reviewDragActive, setReviewDragActive] = useState(false)
   const [uploadForm, setUploadForm] = useState<{
     title: string
     fase: string
@@ -69,13 +81,20 @@ export default function EntregasPage() {
   const [studentSearch, setStudentSearch] = useState("")
   const [studentResults, setStudentResults] = useState<EstudianteBasicInfo[]>([])
   const [studentLoading, setStudentLoading] = useState(false)
+  const [pendingEntregas, setPendingEntregas] = useState<EntregaDetalle[]>([])
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const [pendingError, setPendingError] = useState<string | null>(null)
+  const [reviewFile, setReviewFile] = useState<File | null>(null)
+  const [reviewUploading, setReviewUploading] = useState(false)
+  const [reviewError, setReviewError] = useState("")
+  const [reviewMessage, setReviewMessage] = useState("")
 
   // Filters
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
 
   // Crear cronograma
-  const canCreate = (user?.roles ?? []).some((role) => role.name === "DOCENTETG")
+  const canCreate = hasRole("DOCENTETG")
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState("")
@@ -161,12 +180,53 @@ export default function EntregasPage() {
     setMySchedulesError(null)
     try {
       const response = await apiClient.entregas.getMySchedules()
-      setMySchedules(response.data ?? [])
+      const schedules = response.data ?? []
+      const enriched = await Promise.all(
+        schedules.map(async (schedule) => {
+          if (schedule.entregas && schedule.entregas.length > 0) return schedule
+          try {
+            const entrega = await apiClient.entregas.getMyEntrega(schedule.id)
+            if (entrega?.data) {
+              return { ...schedule, entregas: [entrega.data] }
+            }
+          } catch {
+            // Ignore if student hasn't submitted for this schedule yet.
+          }
+          return schedule
+        }),
+      )
+      setMySchedules(enriched)
     } catch (err) {
       console.error("Error fetching mis cronogramas:", err)
       setMySchedulesError("No se pudieron cargar tus entregas asignadas.")
     } finally {
       setMySchedulesLoading(false)
+    }
+  }, [])
+
+  const fetchMyDeliveries = useCallback(async () => {
+    setMyDeliveriesLoading(true)
+    try {
+      const response = await apiClient.entregas.getMyDeliveries()
+      setMyDeliveries(response.data ?? [])
+    } catch (err) {
+      console.error("Error fetching entregas del estudiante:", err)
+    } finally {
+      setMyDeliveriesLoading(false)
+    }
+  }, [])
+
+  const fetchPendingEntregas = useCallback(async () => {
+    setPendingLoading(true)
+    setPendingError(null)
+    try {
+      const response = await apiClient.entregas.getPending()
+      setPendingEntregas(response.data ?? [])
+    } catch (err) {
+      console.error("Error fetching entregas pendientes:", err)
+      setPendingError("No se pudieron cargar las entregas asignadas.")
+    } finally {
+      setPendingLoading(false)
     }
   }, [])
 
@@ -276,9 +336,16 @@ export default function EntregasPage() {
   useEffect(() => {
     if (isStudent) {
       fetchMySchedules()
+      fetchMyDeliveries()
       fetchStudentProject()
     }
-  }, [isStudent, fetchMySchedules, fetchStudentProject])
+  }, [isStudent, fetchMySchedules, fetchMyDeliveries, fetchStudentProject])
+
+  useEffect(() => {
+    if (isReviewer) {
+      fetchPendingEntregas()
+    }
+  }, [isReviewer, fetchPendingEntregas])
 
   useEffect(() => {
     if (!showCreateForm) return
@@ -362,21 +429,16 @@ export default function EntregasPage() {
     () => mySchedules.find((item) => String(item.id) === selectedScheduleId) ?? null,
     [mySchedules, selectedScheduleId],
   )
-  const studentDeliveries = useMemo(() => {
-    const rows: Array<{ entrega: any; cronograma?: AdmEntrega }> = []
-    mySchedules.forEach((schedule) => {
-      schedule.entregas?.forEach((entrega) => {
-        rows.push({ entrega, cronograma: schedule })
-      })
-    })
-    return rows
-  }, [mySchedules])
-  const [showEntregaDetail, setShowEntregaDetail] = useState(false)
-  const [selectedEntregaDetail, setSelectedEntregaDetail] = useState<{
-    entrega: any
-    cronograma?: AdmEntrega
-  } | null>(null)
+  const hasSubmittedForSchedule = Boolean(selectedSchedule?.entregas?.length)
+  const isOutOfWindow = useMemo(() => {
+    if (!selectedSchedule) return false
+    const now = Date.now()
+    const start = new Date(selectedSchedule.startAt).getTime()
+    const end = new Date(selectedSchedule.endAt).getTime()
+    return now < start || now > end
+  }, [selectedSchedule])
   const studentLabel = user?.persona?.nombreCompleto || user?.email || "Estudiante"
+  const currentDocenteId = user?.docenteId ?? user?.docente?.id ?? null
 
   const renderEstadoRevision = (value?: string) => {
     const status = (value || "").toUpperCase()
@@ -385,6 +447,88 @@ export default function EntregasPage() {
     if (status === "EN_REVISION") return <Badge className="bg-amber-100 text-amber-800">En revisión</Badge>
     return <Badge variant="outline">Pendiente</Badge>
   }
+
+  const getStudentName = (entrega: EntregaDetalle) => {
+    const buildNombre = (details?: { nombre?: string; apPaterno?: string; apMaterno?: string }) => {
+      if (!details) return ""
+      return `${details.apPaterno ?? ""} ${details.apMaterno ?? ""} ${details.nombre ?? ""}`.trim()
+    }
+    if (entrega.estudianteInfo?.nombreCompleto) return entrega.estudianteInfo.nombreCompleto
+    const projectDetails = (entrega as any)?.proyecto?.estudiante?.usuario?.usuarioDetalles
+    const fromProject = buildNombre(projectDetails)
+    if (fromProject) return fromProject
+    const details = (entrega as any)?.estudiante?.usuario?.usuarioDetalles
+    const fromEntrega = buildNombre(details)
+    if (fromEntrega) return fromEntrega
+    return (
+      entrega.estudiante?.nombreCompleto ||
+      entrega.proyecto?.estudiante?.nombreCompleto ||
+      `Estudiante ${entrega.idEstudiante}`
+    )
+  }
+
+  const getEstadoForDocente = (entrega: EntregaDetalle) => {
+    if (!currentDocenteId) return null
+    if (entrega.idDocTG === currentDocenteId) {
+      return entrega.estadoDocTG ?? entrega.estadoRevDocTG
+    }
+    if (entrega.idDocTutor === currentDocenteId) {
+      return entrega.estadoDocTutor ?? entrega.estadoRevDocTutor
+    }
+    if (entrega.idDocRev1 === currentDocenteId) {
+      return entrega.estadoDocRev1 ?? entrega.estadoRevDocRev1
+    }
+    if (entrega.idDocRev2 === currentDocenteId) {
+      return entrega.estadoDocRev2 ?? entrega.estadoRevDocRev2
+    }
+    return null
+  }
+
+  const studentDeliveries = useMemo(() => {
+    const rows: Array<{ entrega: EntregaDetalle; cronograma?: AdmEntrega }> = []
+    if (myDeliveries.length > 0) {
+      myDeliveries.forEach((entrega) => {
+        rows.push({ entrega, cronograma: entrega.admEntrega })
+      })
+      return rows
+    }
+    mySchedules.forEach((schedule) => {
+      schedule.entregas?.forEach((entrega) => {
+        rows.push({ entrega, cronograma: schedule })
+      })
+    })
+    return rows
+  }, [myDeliveries, mySchedules])
+
+  const deliveriesForTable = useMemo(() => {
+    const rows: Array<{ entrega: EntregaDetalle; cronograma?: AdmEntrega; studentName: string }> = []
+    if (isReviewer) {
+      pendingEntregas.forEach((entrega) => {
+        rows.push({
+          entrega,
+          cronograma: entrega.admEntrega,
+          studentName: getStudentName(entrega),
+        })
+      })
+      return rows
+    }
+    if (isStudent) {
+      studentDeliveries.forEach(({ entrega, cronograma }) => {
+        rows.push({
+          entrega,
+          cronograma,
+          studentName: getStudentName(entrega),
+        })
+      })
+    }
+    return rows
+  }, [isStudent, isReviewer, studentDeliveries, pendingEntregas, studentLabel])
+
+  const [showEntregaDetail, setShowEntregaDetail] = useState(false)
+  const [selectedEntregaDetail, setSelectedEntregaDetail] = useState<{
+    entrega: EntregaDetalle
+    cronograma?: AdmEntrega
+  } | null>(null)
 
   const handleCreateCronograma = async () => {
     setCreateError("")
@@ -528,6 +672,19 @@ export default function EntregasPage() {
     setUploadForm((prev) => ({ ...prev, archPdf: file }))
   }
 
+  const setReviewPdf = (file: File | null) => {
+    if (!file) {
+      setReviewFile(null)
+      return
+    }
+    if (!/\.pdf$/i.test(file.name)) {
+      setReviewError("El archivo PDF debe ser .pdf.")
+      return
+    }
+    setReviewError("")
+    setReviewFile(file)
+  }
+
   const handleWordDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     setWordDragActive(false)
@@ -542,12 +699,77 @@ export default function EntregasPage() {
     if (file) setPdfFile(file)
   }
 
+  const handleReviewDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setReviewDragActive(false)
+    const file = event.dataTransfer.files?.[0]
+    if (file) setReviewPdf(file)
+  }
+
+  const handleDownloadEntregaFile = async (entrega: EntregaDetalle, type: "word" | "pdf") => {
+    try {
+      const blob = await apiClient.entregas.download(entrega.id, type)
+      const fallbackName = type === "word" ? "entrega.docx" : "entrega.pdf"
+      const originalName =
+        type === "word"
+          ? entrega.archWord?.originalName || entrega.archEstWord?.originalName || fallbackName
+          : entrega.archPdf?.originalName || entrega.archEstPdf?.originalName || fallbackName
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = originalName
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+      if (isReviewer) {
+        fetchPendingEntregas()
+      } else if (isStudent) {
+        fetchMySchedules()
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo descargar el archivo."
+      setReviewError(message)
+    }
+  }
+
+  const handleUploadRevision = async () => {
+    setReviewError("")
+    setReviewMessage("")
+    const entrega = selectedEntregaDetail?.entrega
+    if (!entrega) {
+      setReviewError("Selecciona una entrega válida.")
+      return
+    }
+    if (!reviewFile) {
+      setReviewError("Adjunta tu PDF de revisión.")
+      return
+    }
+
+    try {
+      setReviewUploading(true)
+      await apiClient.entregas.review(entrega.id, reviewFile)
+      setReviewMessage("Revisión enviada correctamente.")
+      setReviewFile(null)
+      fetchPendingEntregas()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo subir la revisión."
+      setReviewError(message)
+    } finally {
+      setReviewUploading(false)
+    }
+  }
+
   const handleUploadEntrega = async () => {
     setUploadError("")
     setUploadMessage("")
 
     if (!selectedSchedule) {
       setUploadError("Selecciona un cronograma válido.")
+      return
+    }
+    if (isOutOfWindow) {
+      setUploadError("El cronograma está fuera de la ventana permitida.")
       return
     }
     if (!studentProject) {
@@ -580,6 +802,7 @@ export default function EntregasPage() {
       setUploadMessage("Entrega enviada correctamente.")
       handleUploadModalChange(false)
       fetchMySchedules()
+      fetchMyDeliveries()
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo subir la entrega."
       setUploadError(message)
@@ -616,39 +839,56 @@ export default function EntregasPage() {
         </div>
       </div>
 
-      {isStudent && (
+      {(isStudent || isReviewer) && (
         <Card className="border-primary/20">
           <CardHeader>
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <CardTitle>Entregas</CardTitle>
                 <CardDescription>
-                  Carga tus archivos dentro de la ventana activa. Necesitas Word y PDF.
+                  {isStudent
+                    ? "Carga tus archivos dentro de la ventana activa. Necesitas Word y PDF."
+                    : "Descarga archivos y sube tu revisión en PDF."}
                 </CardDescription>
               </div>
-              <Button
-                onClick={() => openUploadModal()}
-                className="flex items-center gap-2"
-                disabled={!mySchedules.length || !studentProject}
-              >
-                <Upload className="w-4 h-4" />
-                Crear entrega
-              </Button>
+              <div className="flex gap-2">
+                {isStudent && (
+                  <Button
+                    onClick={() => openUploadModal()}
+                    className="flex items-center gap-2"
+                    disabled={!mySchedules.length || !studentProject}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Crear entrega
+                  </Button>
+                )}
+                {isReviewer && !isStudent && (
+                  <Button variant="outline" onClick={fetchPendingEntregas} disabled={pendingLoading}>
+                    <RefreshCw className={`w-4 h-4 mr-2 ${pendingLoading ? "animate-spin" : ""}`} />
+                    Actualizar
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            {mySchedulesError && (
+            {isStudent && mySchedulesError && (
               <div className="bg-red-50 text-red-700 border border-red-200 text-sm rounded-md p-3 mb-4">
                 {mySchedulesError}
               </div>
             )}
-            {!studentProject && (
+            {isReviewer && !isStudent && pendingError && (
+              <div className="bg-red-50 text-red-700 border border-red-200 text-sm rounded-md p-3 mb-4">
+                {pendingError}
+              </div>
+            )}
+            {isStudent && !studentProject && (
               <div className="bg-amber-50 text-amber-700 border border-amber-200 text-sm rounded-md p-3 mb-4">
                 No se encontró un proyecto asociado a tu cuenta. Comunícate con tu docente para asignarlo.
               </div>
             )}
 
-            {mySchedulesLoading ? (
+            {(isStudent ? mySchedulesLoading || myDeliveriesLoading : pendingLoading) ? (
               <div className="flex justify-center py-6">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
@@ -667,8 +907,8 @@ export default function EntregasPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {studentDeliveries.length > 0 ? (
-                      studentDeliveries.map(({ entrega, cronograma }) => {
+                    {deliveriesForTable.length > 0 ? (
+                      deliveriesForTable.map(({ entrega, cronograma, studentName }) => {
                         const estadoDocTG = entrega.estadoDocTG ?? entrega.estadoRevDocTG
                         const estadoTutor = entrega.estadoDocTutor ?? entrega.estadoRevDocTutor
                         const estadoRev1 = entrega.estadoDocRev1 ?? entrega.estadoRevDocRev1
@@ -676,10 +916,8 @@ export default function EntregasPage() {
                         return (
                           <tr key={entrega.id} className="border-b hover:bg-muted/50 transition-colors align-top">
                             <td className="py-3 px-4">
-                              <div className="font-semibold text-foreground">{studentLabel}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {cronograma?.title || "Entrega"}
-                              </div>
+                              <div className="font-semibold text-foreground">{studentName}</div>
+                              <div className="text-xs text-muted-foreground">{cronograma?.title || "Entrega"}</div>
                             </td>
                             <td className="py-3 px-4 text-xs text-muted-foreground">
                               {formatDateTime(entrega.entregaEstAt)}
@@ -696,6 +934,9 @@ export default function EntregasPage() {
                                 onClick={() => {
                                   setSelectedEntregaDetail({ entrega, cronograma })
                                   setShowEntregaDetail(true)
+                                  setReviewFile(null)
+                                  setReviewError("")
+                                  setReviewMessage("")
                                 }}
                               >
                                 Ver detalles
@@ -707,7 +948,9 @@ export default function EntregasPage() {
                     ) : (
                       <tr>
                         <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                          No tienes entregas registradas todavía.
+                          {isStudent
+                            ? "No tienes entregas registradas todavía."
+                            : "No tienes entregas pendientes por revisar."}
                         </td>
                       </tr>
                     )}
@@ -1115,7 +1358,10 @@ export default function EntregasPage() {
       </Dialog>
 
       <Dialog open={uploadModalOpen} onOpenChange={handleUploadModalChange}>
-        <DialogContent className="w-[95vw] max-w-lg" overlayClassName="bg-black/60">
+        <DialogContent
+          className="w-[95vw] max-w-lg max-h-[85vh] overflow-hidden"
+          overlayClassName="bg-black/60"
+        >
           <DialogHeader>
             <DialogTitle className="text-primary">Subir entrega</DialogTitle>
             <DialogDescription>
@@ -1123,135 +1369,147 @@ export default function EntregasPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {uploadError && (
-            <div className="bg-red-50 text-red-700 border border-red-200 text-sm rounded-md p-3">{uploadError}</div>
-          )}
-          {uploadMessage && (
-            <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm rounded-md p-3">
-              {uploadMessage}
-            </div>
-          )}
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            {uploadError && (
+              <div className="bg-red-50 text-red-700 border border-red-200 text-sm rounded-md p-3">
+                {uploadError}
+              </div>
+            )}
+            {uploadMessage && (
+              <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm rounded-md p-3">
+                {uploadMessage}
+              </div>
+            )}
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Cronograma</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedScheduleId}
-                onChange={(e) => setSelectedScheduleId(e.target.value)}
-              >
-                <option value="">Seleccione cronograma</option>
-                {mySchedules.map((schedule) => (
-                  <option key={schedule.id} value={schedule.id}>
-                    {schedule.title}
-                  </option>
-                ))}
-              </select>
-              {selectedSchedule && (
-                <p className="text-xs text-muted-foreground">
-                  Ventana: {formatDateTime(selectedSchedule.startAt)} - {formatDateTime(selectedSchedule.endAt)}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Título de entrega</label>
-              <Input
-                value={uploadForm.title}
-                onChange={(e) => setUploadForm((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="Ej: Entrega parcial"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fase</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={uploadForm.fase}
-                onChange={(e) => setUploadForm((prev) => ({ ...prev, fase: e.target.value }))}
-              >
-                <option value="">Seleccione fase</option>
-                {phases.map((phase) => (
-                  <option key={phase.id} value={phase.name}>
-                    {phase.name}
-                  </option>
-                ))}
-              </select>
-              {phasesLoading && <p className="text-xs text-muted-foreground">Cargando fases...</p>}
-              {phasesError && <p className="text-xs text-red-600">{phasesError}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Archivo Word</label>
-              <div
-                className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-md border-2 border-dashed px-4 py-6 text-sm ${
-                  wordDragActive ? "border-primary bg-primary/5" : "border-muted"
-                }`}
-                onDragOver={(event) => {
-                  event.preventDefault()
-                  setWordDragActive(true)
-                }}
-                onDragLeave={() => setWordDragActive(false)}
-                onDrop={handleWordDrop}
-                onClick={() => wordInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault()
-                    wordInputRef.current?.click()
-                  }
-                }}
-              >
-                {wordDragActive && (
-                  <div className="pointer-events-none absolute inset-0 bg-primary/10 ring-2 ring-primary/40" />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cronograma</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedScheduleId}
+                  onChange={(e) => setSelectedScheduleId(e.target.value)}
+                >
+                  <option value="">Seleccione cronograma</option>
+                  {mySchedules.map((schedule) => (
+                    <option key={schedule.id} value={schedule.id}>
+                      {schedule.title}
+                    </option>
+                  ))}
+                </select>
+                {selectedSchedule && (
+                  <p className="text-xs text-muted-foreground">
+                    Ventana: {formatDateTime(selectedSchedule.startAt)} - {formatDateTime(selectedSchedule.endAt)}
+                  </p>
                 )}
-                <p className="font-medium">
-                  {uploadForm.archWord ? uploadForm.archWord.name : "Arrastra tu Word o haz clic"}
-                </p>
-                <p className="text-xs text-muted-foreground">Formatos .doc o .docx</p>
+                {selectedSchedule && hasSubmittedForSchedule && (
+                  <p className="text-xs text-amber-700">
+                    Ya existe una entrega registrada para este cronograma. Se reemplazará al enviar.
+                  </p>
+                )}
+                {selectedSchedule && isOutOfWindow && (
+                  <p className="text-xs text-red-600">Fuera de la ventana permitida para subir.</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Título de entrega</label>
                 <Input
-                  ref={wordInputRef}
-                  type="file"
-                  accept=".doc,.docx"
-                  className="hidden"
-                  onChange={(e) => setWordFile(e.target.files?.[0] ?? null)}
+                  value={uploadForm.title}
+                  onChange={(e) => setUploadForm((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="Ej: Entrega parcial"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Archivo PDF</label>
-              <div
-                className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-md border-2 border-dashed px-4 py-6 text-sm ${
-                  pdfDragActive ? "border-primary bg-primary/5" : "border-muted"
-                }`}
-                onDragOver={(event) => {
-                  event.preventDefault()
-                  setPdfDragActive(true)
-                }}
-                onDragLeave={() => setPdfDragActive(false)}
-                onDrop={handlePdfDrop}
-                onClick={() => pdfInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Fase</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={uploadForm.fase}
+                  onChange={(e) => setUploadForm((prev) => ({ ...prev, fase: e.target.value }))}
+                >
+                  <option value="">Seleccione fase</option>
+                  {phases.map((phase) => (
+                    <option key={phase.id} value={phase.name}>
+                      {phase.name}
+                    </option>
+                  ))}
+                </select>
+                {phasesLoading && <p className="text-xs text-muted-foreground">Cargando fases...</p>}
+                {phasesError && <p className="text-xs text-red-600">{phasesError}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Archivo Word</label>
+                <div
+                  className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-md border-2 border-dashed px-4 py-6 text-sm ${
+                    wordDragActive ? "border-primary bg-primary/5" : "border-muted"
+                  }`}
+                  onDragOver={(event) => {
                     event.preventDefault()
-                    pdfInputRef.current?.click()
-                  }
-                }}
-              >
-                {pdfDragActive && (
-                  <div className="pointer-events-none absolute inset-0 bg-primary/10 ring-2 ring-primary/40" />
-                )}
-                <p className="font-medium">
-                  {uploadForm.archPdf ? uploadForm.archPdf.name : "Arrastra tu PDF o haz clic"}
-                </p>
-                <p className="text-xs text-muted-foreground">Formato .pdf</p>
-                <Input
-                  ref={pdfInputRef}
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-                />
+                    setWordDragActive(true)
+                  }}
+                  onDragLeave={() => setWordDragActive(false)}
+                  onDrop={handleWordDrop}
+                  onClick={() => wordInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      wordInputRef.current?.click()
+                    }
+                  }}
+                >
+                  {wordDragActive && (
+                    <div className="pointer-events-none absolute inset-0 bg-primary/10 ring-2 ring-primary/40" />
+                  )}
+                  <p className="font-medium">
+                    {uploadForm.archWord ? uploadForm.archWord.name : "Arrastra tu Word o haz clic"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Formatos .doc o .docx</p>
+                  <Input
+                    ref={wordInputRef}
+                    type="file"
+                    accept=".doc,.docx"
+                    className="hidden"
+                    onChange={(e) => setWordFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Archivo PDF</label>
+                <div
+                  className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-md border-2 border-dashed px-4 py-6 text-sm ${
+                    pdfDragActive ? "border-primary bg-primary/5" : "border-muted"
+                  }`}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    setPdfDragActive(true)
+                  }}
+                  onDragLeave={() => setPdfDragActive(false)}
+                  onDrop={handlePdfDrop}
+                  onClick={() => pdfInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      pdfInputRef.current?.click()
+                    }
+                  }}
+                >
+                  {pdfDragActive && (
+                    <div className="pointer-events-none absolute inset-0 bg-primary/10 ring-2 ring-primary/40" />
+                  )}
+                  <p className="font-medium">
+                    {uploadForm.archPdf ? uploadForm.archPdf.name : "Arrastra tu PDF o haz clic"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Formato .pdf</p>
+                  <Input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1260,7 +1518,7 @@ export default function EntregasPage() {
             <Button variant="outline" onClick={() => handleUploadModalChange(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleUploadEntrega} disabled={uploading}>
+            <Button onClick={handleUploadEntrega} disabled={uploading || isOutOfWindow}>
               {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
               {uploading ? "Subiendo..." : "Enviar entrega"}
             </Button>
@@ -1272,74 +1530,196 @@ export default function EntregasPage() {
         open={showEntregaDetail}
         onOpenChange={(open) => {
           setShowEntregaDetail(open)
-          if (!open) setSelectedEntregaDetail(null)
+          if (!open) {
+            setSelectedEntregaDetail(null)
+            setReviewFile(null)
+            setReviewError("")
+            setReviewMessage("")
+          }
         }}
       >
-        <DialogContent className="w-[95vw] max-w-lg" overlayClassName="bg-black/60">
+        <DialogContent className="w-[95vw] max-w-lg max-h-[85vh] overflow-hidden" overlayClassName="bg-black/60">
           <DialogHeader>
             <DialogTitle className="text-primary">Detalle de entrega</DialogTitle>
             <DialogDescription>Estado de revisión por docente.</DialogDescription>
           </DialogHeader>
 
-          {selectedEntregaDetail ? (
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Estudiante</p>
-                <p className="font-medium">{studentLabel}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Cronograma</p>
-                <p className="font-medium">{selectedEntregaDetail.cronograma?.title || "Entrega"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Fecha de envío</p>
-                <p className="font-medium">{formatDateTime(selectedEntregaDetail.entrega.entregaEstAt)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Título</p>
-                <p className="font-medium">{selectedEntregaDetail.entrega.title}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Fase</p>
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            {selectedEntregaDetail ? (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Estudiante</p>
                 <p className="font-medium">
-                  {(selectedEntregaDetail.entrega.descripcion || "").replace(/^Fase:\s*/i, "") || "N/D"}
+                  {selectedEntregaDetail
+                    ? (isReviewer ? getStudentName(selectedEntregaDetail.entrega) : studentLabel)
+                    : studentLabel}
                 </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Cronograma</p>
+                  <p className="font-medium">{selectedEntregaDetail.cronograma?.title || "Entrega"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Fecha de envío</p>
+                  <p className="font-medium">{formatDateTime(selectedEntregaDetail.entrega.entregaEstAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Título</p>
+                  <p className="font-medium">{selectedEntregaDetail.entrega.title}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Fase</p>
+                  <p className="font-medium">
+                    {(selectedEntregaDetail.entrega.descripcion || "").replace(/^Fase:\s*/i, "") || "N/D"}
+                  </p>
+                </div>
+                {isReviewer && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Estado de revisión</p>
+                    {renderEstadoRevision(getEstadoForDocente(selectedEntregaDetail.entrega) ?? undefined)}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Docente TG</p>
+                    {renderEstadoRevision(
+                      selectedEntregaDetail.entrega.estadoDocTG ?? selectedEntregaDetail.entrega.estadoRevDocTG,
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tutor</p>
+                    {renderEstadoRevision(
+                      selectedEntregaDetail.entrega.estadoDocTutor ?? selectedEntregaDetail.entrega.estadoRevDocTutor,
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Revisor 1</p>
+                    {renderEstadoRevision(
+                      selectedEntregaDetail.entrega.estadoDocRev1 ?? selectedEntregaDetail.entrega.estadoRevDocRev1,
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Revisor 2</p>
+                    {renderEstadoRevision(
+                      selectedEntregaDetail.entrega.estadoDocRev2 ?? selectedEntregaDetail.entrega.estadoRevDocRev2,
+                    )}
+                  </div>
+                </div>
+
+                {(isReviewer || isStudent) && (
+                  <>
+                    <div className="grid gap-3 pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        {isReviewer ? "Descargar archivos del estudiante" : "Descargar tus archivos"}
+                      </p>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleDownloadEntregaFile(selectedEntregaDetail.entrega, "word")}
+                          disabled={
+                            !selectedEntregaDetail.entrega.archEstWord &&
+                            !selectedEntregaDetail.entrega.archWord
+                          }
+                        >
+                          Descargar Word
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleDownloadEntregaFile(selectedEntregaDetail.entrega, "pdf")}
+                          disabled={
+                            !selectedEntregaDetail.entrega.archEstPdf &&
+                            !selectedEntregaDetail.entrega.archPdf
+                          }
+                        >
+                          Descargar PDF
+                        </Button>
+                      </div>
+                      {isReviewer && (
+                        <p className="text-xs text-muted-foreground">
+                          Para subir tu revisión debes descargar primero (estado EN_REVISION).
+                        </p>
+                      )}
+                    </div>
+
+                    {isReviewer && (
+                      <>
+                        {reviewError && (
+                          <div className="bg-red-50 text-red-700 border border-red-200 text-sm rounded-md p-3">
+                            {reviewError}
+                          </div>
+                        )}
+                        {reviewMessage && (
+                          <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm rounded-md p-3">
+                            {reviewMessage}
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Subir PDF de revisión</label>
+                          <div
+                            className={`relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-md border-2 border-dashed px-4 py-6 text-sm ${
+                              reviewDragActive ? "border-primary bg-primary/5" : "border-muted"
+                            }`}
+                            onDragOver={(event) => {
+                              event.preventDefault()
+                              setReviewDragActive(true)
+                            }}
+                            onDragLeave={() => setReviewDragActive(false)}
+                            onDrop={handleReviewDrop}
+                            onClick={() => reviewInputRef.current?.click()}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault()
+                                reviewInputRef.current?.click()
+                              }
+                            }}
+                          >
+                            {reviewDragActive && (
+                              <div className="pointer-events-none absolute inset-0 bg-primary/10 ring-2 ring-primary/40" />
+                            )}
+                            <p className="font-medium">
+                              {reviewFile ? reviewFile.name : "Arrastra tu PDF o haz clic"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Formato .pdf</p>
+                            <Input
+                              ref={reviewInputRef}
+                              type="file"
+                              accept=".pdf"
+                              className="hidden"
+                              onChange={(e) => setReviewPdf(e.target.files?.[0] ?? null)}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Docente TG</p>
-                  {renderEstadoRevision(
-                    selectedEntregaDetail.entrega.estadoDocTG ?? selectedEntregaDetail.entrega.estadoRevDocTG,
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Tutor</p>
-                  {renderEstadoRevision(
-                    selectedEntregaDetail.entrega.estadoDocTutor ?? selectedEntregaDetail.entrega.estadoRevDocTutor,
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Revisor 1</p>
-                  {renderEstadoRevision(
-                    selectedEntregaDetail.entrega.estadoDocRev1 ?? selectedEntregaDetail.entrega.estadoRevDocRev1,
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Revisor 2</p>
-                  {renderEstadoRevision(
-                    selectedEntregaDetail.entrega.estadoDocRev2 ?? selectedEntregaDetail.entrega.estadoRevDocRev2,
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">No hay datos de entrega.</div>
-          )}
+            ) : (
+              <div className="text-sm text-muted-foreground">No hay datos de entrega.</div>
+            )}
+          </div>
 
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowEntregaDetail(false)}>
               Cerrar
             </Button>
+            {isReviewer && (
+              <Button
+                onClick={handleUploadRevision}
+                disabled={
+                  reviewUploading ||
+                  !selectedEntregaDetail ||
+                  !reviewFile ||
+                  getEstadoForDocente(selectedEntregaDetail.entrega) !== "EN_REVISION"
+                }
+              >
+                {reviewUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Subir revisión
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

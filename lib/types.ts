@@ -312,6 +312,10 @@ export interface EntregaDetalle {
   idAdmEntrega: number
   idEstudiante: number
   idProyecto: number
+  idDocTG?: number
+  idDocTutor?: number
+  idDocRev1?: number
+  idDocRev2?: number
   title: string
   descripcion: string | null
   entregaEstAt: string
@@ -319,9 +323,14 @@ export interface EntregaDetalle {
   archWord?: SubmissionFile
   archPdfId: number
   archPdf?: SubmissionFile
+  archEstWordId?: number | null
+  archEstPdfId?: number | null
+  archEstWord?: SubmissionFile
+  archEstPdf?: SubmissionFile
 
   // DocTG
   estadoDocTG: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  estadoRevDocTG?: "PENDIENTE" | "EN_REVISION" | "REVISADO"
   descargaDocTGAt: string | null
   revDocTGAt: string | null
   archRevDocTGId: number | null
@@ -329,6 +338,7 @@ export interface EntregaDetalle {
 
   // DocTutor
   estadoDocTutor: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  estadoRevDocTutor?: "PENDIENTE" | "EN_REVISION" | "REVISADO"
   descargaDocTutorAt: string | null
   revDocTutorAt: string | null
   archRevDocTutorId: number | null
@@ -336,6 +346,7 @@ export interface EntregaDetalle {
 
   // DocRev1
   estadoDocRev1: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  estadoRevDocRev1?: "PENDIENTE" | "EN_REVISION" | "REVISADO"
   descargaDocRev1At: string | null
   revDocRev1At: string | null
   archRevDocRev1Id: number | null
@@ -343,13 +354,16 @@ export interface EntregaDetalle {
 
   // DocRev2
   estadoDocRev2: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  estadoRevDocRev2?: "PENDIENTE" | "EN_REVISION" | "REVISADO"
   descargaDocRev2At: string | null
   revDocRev2At: string | null
   archRevDocRev2Id: number | null
   archRevDocRev2?: SubmissionFile
 
   estudiante?: EstudianteBasicInfo
+  estudianteInfo?: EstudianteBasicInfo
   proyecto?: ProjectResponseDto
+  admEntrega?: AdmEntrega
 }
 
 export interface DocumentInfo {
