@@ -256,7 +256,7 @@ export default function ProyectosPage() {
                 <Input
                   disabled
                   placeholder="Se carga desde SAGA"
-                  className="bg-gray-100 dark:bg-slate-800"
+                  className="bg-muted text-muted-foreground"
                   value={newProyecto.proyecto}
                 />
               </div>

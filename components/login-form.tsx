@@ -12,9 +12,10 @@ import { Eye, EyeOff } from "lucide-react"
 
 interface LoginFormProps {
   onBackToHome?: () => void
+  onLoginSuccess?: () => void
 }
 
-export default function LoginForm({ onBackToHome }: LoginFormProps) {
+export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -43,6 +44,7 @@ export default function LoginForm({ onBackToHome }: LoginFormProps) {
       console.log("[v0] Iniciando proceso de login...")
       await login(email, password)
       console.log("[v0] Login exitoso!")
+      onLoginSuccess?.()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed"
       console.error("[v0] Login error:", message)
@@ -64,31 +66,36 @@ export default function LoginForm({ onBackToHome }: LoginFormProps) {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-primary/10 to-background dark:from-primary/5 dark:to-background">
-      <header className="border-b bg-white dark:bg-slate-900 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="relative min-h-screen overflow-hidden">
+      <div className="absolute inset-0 -z-10">
+        <img
+          src="/sistg-03.jpg"
+          alt="Fondo SISTG"
+          className="w-full h-full object-cover opacity-55"
+        />
+        <div className="absolute inset-0 bg-linear-to-br from-background/65 via-background/70 to-background/75 dark:from-background/60 dark:via-background/65 dark:to-background/70" />
+      </div>
+
+      <header className="border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <button onClick={onBackToHome} className="flex items-center gap-3 hover:opacity-80">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
-              <img
-                src={"/emi_logo_png.webp"}
-                alt="Logo EMI"
-                className="w-8 h-8"
-              />
+            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-primary/30">
+              <img src={"/emi_logo_png.webp"} alt="Logo EMI" className="w-8 h-8" />
             </div>
-            <div>
-              <h1 className="font-bold text-lg text-primary">SISTG</h1>
-              <p className="text-xs text-muted-foreground">Sistema de Gestión de TG</p>
+            <div className="text-left">
+              <h1 className="font-bold text-xl text-primary leading-tight">SISTG</h1>
+              <p className="text-xs text-muted-foreground">Sistema de Gestión de Trabajos de Grado</p>
             </div>
           </button>
         </div>
       </header>
 
-      <main className="flex items-center justify-center p-4 min-h-[calc(100vh-80px)]">
-        <div className="w-full max-w-md">
-          <Card className="shadow-lg">
+      <main className="relative flex items-center justify-center p-4 min-h-[calc(100vh-80px)]">
+        <div className="w-full max-w-lg">
+          <Card className="shadow-xl border-primary/10">
             <CardHeader className="space-y-2">
-              <CardTitle className="text-2xl text-primary">Iniciar Sesión</CardTitle>
-              <CardDescription>Ingresa con tu correo institucional EMI y contraseña</CardDescription>
+              <CardTitle className="text-3xl text-primary">Iniciar Sesión</CardTitle>
+              <CardDescription>Usa tu correo institucional EMI y contraseña</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">

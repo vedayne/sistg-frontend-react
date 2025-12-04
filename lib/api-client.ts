@@ -16,6 +16,27 @@ interface AuthResponse {
 }
 
 let accessToken: string | null = null
+let refreshingPromise: Promise<string | null> | null = null
+
+type RequestOptions = RequestInit & {
+  skipAuth?: boolean
+  /** internal flag to avoid loops when reintentando */
+  _isRefreshRequest?: boolean
+}
+
+const parseErrorMessage = async (response: Response) => {
+  try {
+    const error = await response.json()
+    return (error as any).message || (error as any).error || response.statusText
+  } catch {
+    try {
+      const text = await response.text()
+      return text || response.statusText
+    } catch {
+      return response.statusText
+    }
+  }
+}
 
 export const apiClient = {
   setAccessToken: (token: string) => {
@@ -23,10 +44,42 @@ export const apiClient = {
     localStorage.setItem("access_token", token)
   },
 
+  clearAccessToken: () => {
+    accessToken = null
+    localStorage.removeItem("access_token")
+  },
+
   getAccessToken: () => accessToken || localStorage.getItem("access_token"),
 
-  async request<T>(endpoint: string, options: RequestInit & { skipAuth?: boolean } = {}): Promise<T> {
-    const { skipAuth, ...requestInit } = options
+  async tryRefreshAccessToken(): Promise<string | null> {
+    if (refreshingPromise) return refreshingPromise
+
+    refreshingPromise = (async () => {
+      try {
+        const refreshResponse = await apiClient.request<AuthResponse>("/auth/refresh", {
+          method: "POST",
+          skipAuth: true,
+          _isRefreshRequest: true,
+        })
+        const token = (refreshResponse as AuthResponse).access_token
+        if (token) {
+          apiClient.setAccessToken(token)
+          return token
+        }
+      } catch (err) {
+        console.error("[v0] Error refreshing token:", err)
+        apiClient.clearAccessToken()
+      } finally {
+        refreshingPromise = null
+      }
+      return null
+    })()
+
+    return refreshingPromise
+  },
+
+  async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    const { skipAuth, _isRefreshRequest, ...requestInit } = options
     const headers = new Headers(requestInit.headers)
 
     if (!skipAuth) {
@@ -38,28 +91,23 @@ export const apiClient = {
 
     headers.set("Content-Type", "application/json")
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...requestInit,
-      headers,
-    })
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...requestInit, headers })
 
     if (!response.ok) {
-      let errorMessage = `API Error: ${response.statusText}`
-      try {
-        const error = await response.json()
-        console.log("[v0] API Error Response:", { status: response.status, error })
-        errorMessage = error.message || error.error || errorMessage
-      } catch {
-        const text = await response.text()
-        console.log("[v0] API Error Text:", { status: response.status, text })
-        errorMessage = text || errorMessage
+      const errorMessage = await parseErrorMessage(response)
+      const shouldAttemptRefresh = !_isRefreshRequest && !skipAuth && response.status === 401
+
+      if (shouldAttemptRefresh) {
+        const refreshed = await apiClient.tryRefreshAccessToken()
+        if (refreshed) {
+          return apiClient.request<T>(endpoint, { ...options, _isRefreshRequest: false })
+        }
       }
 
       if (response.status === 401) {
-        localStorage.removeItem("access_token")
-        accessToken = null
+        apiClient.clearAccessToken()
       }
-      throw new Error(errorMessage)
+      throw new Error(errorMessage || `API Error: ${response.statusText}`)
     }
 
     return response.json()
@@ -78,6 +126,8 @@ export const apiClient = {
     refresh: async () =>
       apiClient.request<{ access_token: string }>("/auth/refresh", {
         method: "POST",
+        skipAuth: true,
+        _isRefreshRequest: true,
       }),
 
     logout: async () => apiClient.request("/auth/logout", { method: "POST" }),
@@ -86,6 +136,11 @@ export const apiClient = {
 
     logoutAll: async () =>
       apiClient.request("/auth/logout-all", {
+        method: "POST",
+      }),
+
+    logoutSession: async (sessionId: string) =>
+      apiClient.request(`/auth/sessions/${sessionId}`, {
         method: "POST",
       }),
 

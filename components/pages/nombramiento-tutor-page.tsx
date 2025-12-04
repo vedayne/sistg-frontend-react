@@ -126,7 +126,7 @@ export default function NombramientoTutorPage() {
             </div>
 
             {selectedTutor && (
-              <div className="border rounded-lg p-4 bg-green-50 dark:bg-slate-800">
+              <div className="border rounded-lg p-4 bg-secondary/15 dark:bg-primary/20">
                 <p className="font-semibold text-foreground">{selectedTutor.nombre}</p>
                 <p className="text-sm text-muted-foreground">{selectedTutor.email}</p>
                 <p className="text-sm text-muted-foreground">{selectedTutor.telefono}</p>

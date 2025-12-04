@@ -10,17 +10,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
-import { Camera, Lock, LogOut, Smartphone, X, Copy } from "lucide-react"
+import { Camera, Lock, LogOut, Smartphone, Copy } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function ProfilePage() {
   const { user, loading, updatePassword, fetchSessions, logoutAllDevices, logoutDevice, sessions } = useAuth()
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
-  const [showSessionsPopup, setShowSessionsPopup] = useState(false)
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [passwordError, setPasswordError] = useState("")
   const [passwordSuccess, setPasswordSuccess] = useState("")
+  const [activeTab, setActiveTab] = useState<"perfil" | "sesiones">("perfil")
   const [passwordData, setPasswordData] = useState({
     current: "",
     new: "",
@@ -35,17 +35,17 @@ export default function ProfilePage() {
     }
   }, [user?.fotoPerfil])
 
-  const handleOpenSessionsPopup = async () => {
-    setShowSessionsPopup(true)
-    await fetchSessions()
-  }
+  useEffect(() => {
+    if (activeTab === "sesiones") {
+      fetchSessions()
+    }
+  }, [activeTab, fetchSessions])
 
   const handleLogoutAllDevices = async () => {
     if (confirm("¿Estás seguro de que quieres cerrar todas las sesiones en otros dispositivos?")) {
       setIsLoggingOut(true)
       try {
         await logoutAllDevices()
-        setShowSessionsPopup(false)
         alert("Todas las sesiones han sido cerradas exitosamente")
       } catch (err) {
         alert("Error al cerrar las sesiones: " + (err instanceof Error ? err.message : "Error desconocido"))
@@ -157,13 +157,19 @@ export default function ProfilePage() {
     return { browser, os }
   }
 
-  const currentSessionId = sessions.length > 0 ? sessions[0]?.id : null
-  const otherSessions = sessions.filter((s) => s.id !== currentSessionId)
+  const currentSession = (() => {
+    if (!sessions.length) return null
+    const currentUA = typeof window !== "undefined" ? window.navigator.userAgent : ""
+    const exactMatch = currentUA ? sessions.find((s) => s.userAgent === currentUA) : null
+    return exactMatch || sessions[0]
+  })()
+  const otherSessions = currentSession ? sessions.filter((s) => s.id !== currentSession.id) : []
 
   const calculateTimeRemaining = (expiresAt: string) => {
     const now = new Date().getTime()
     const expires = new Date(expiresAt).getTime()
     const diffMs = expires - now
+    if (diffMs <= 0) return "Expirada"
     const hours = Math.floor(diffMs / (1000 * 60 * 60))
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
     return `${hours}h ${minutes}m`
@@ -171,7 +177,11 @@ export default function ProfilePage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <Tabs defaultValue="perfil" className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as "perfil" | "sesiones")}
+        className="w-full"
+      >
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="perfil">Perfil</TabsTrigger>
           <TabsTrigger value="sesiones">Sesiones Activas</TabsTrigger>
@@ -225,7 +235,7 @@ export default function ProfilePage() {
                     <p className="font-medium text-foreground">{user.persona?.nombreCompleto}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Carné de Identidad</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Carnet de Identidad</label>
                     <p className="font-medium text-foreground">{user.persona?.ci || "N/A"}</p>
                   </div>
                   <div>
@@ -250,7 +260,8 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-1">Grado</label>
-                    <p className="font-medium text-foreground">{user.persona?.grado || "N/A"}</p>
+                    {/* <p className="font-medium text-foreground">{user.persona?.grado || "N/A"}</p> */}
+                    {user.persona?.fuerza === "Militar" ? "Militar" : "Civil"}
                   </div>
                 </div>
               </CardContent>
@@ -285,7 +296,7 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
-                    Códigos de Identificación
+                    Código SAGA
                   </label>
                   <p className="font-medium text-foreground">{user.academico?.codAlumno || "N/A"}</p>
                 </div>
@@ -299,155 +310,155 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="sesiones" className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-primary mb-2">Sesiones Activas</h1>
-            <p className="text-muted-foreground">Gestiona tus sesiones en diferentes dispositivos</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-bold text-primary mb-1">Sesiones Activas</h1>
+              <p className="text-muted-foreground">Gestiona tus sesiones en diferentes dispositivos</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={fetchSessions} className="bg-secondary/10 border-secondary/30">
+                Actualizar
+              </Button>
+              {otherSessions.length > 0 && (
+                <Button
+                  onClick={handleLogoutAllDevices}
+                  disabled={isLoggingOut}
+                  variant="destructive"
+                  className="flex gap-2 items-center"
+                >
+                  <LogOut className="w-4 h-4" />
+                  {isLoggingOut ? "Cerrando..." : "Cerrar otras sesiones"}
+                </Button>
+              )}
+            </div>
           </div>
 
-          <Card>
-            <CardContent className="pt-6">
-              <Button
-                onClick={handleOpenSessionsPopup}
-                className="flex gap-2 items-center bg-primary hover:bg-primary/90 text-white"
-              >
-                <Smartphone className="w-4 h-4" />
-                Ver y Gestionar Sesiones
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* PopUp de Sesiones */}
-          {showSessionsPopup && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-card border rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto dark:bg-slate-900">
-                <div className="sticky top-0 bg-card dark:bg-slate-900 border-b p-4 flex justify-between items-center">
-                  <h2 className="text-lg font-bold text-primary">Gestionar Sesiones</h2>
-                  <button
-                    onClick={() => setShowSessionsPopup(false)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="p-6 space-y-6">
-                  {sessions.length > 0 && (
+          {sessions.length === 0 ? (
+            <Alert>
+              <AlertDescription>No hay sesiones activas registradas</AlertDescription>
+            </Alert>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card className="border-primary/20 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Smartphone className="w-4 h-4" />
+                    Sesión actual
+                  </CardTitle>
+                  <CardDescription>Esta es la sesión que estás usando ahora</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {currentSession ? (
                     <>
-                      {/* Este dispositivo */}
-                      <div className="space-y-3">
-                        <h3 className="font-semibold text-blue-600 dark:text-blue-400 text-sm uppercase">
-                          Este dispositivo
-                        </h3>
-                        {sessions.slice(0, 1).map((session) => {
-                          const { browser, os } = parseUserAgent(session.userAgent)
-                          const timeRemaining = calculateTimeRemaining(session.expiresAt)
-                          return (
-                            <div key={session.id} className="border rounded-lg p-4 bg-blue-50 dark:bg-slate-800">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <p className="font-semibold text-foreground">{browser}</p>
-                                  <p className="text-sm text-muted-foreground">{os}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">IP: {session.ip}</p>
-                                  <p className="text-xs text-green-600 dark:text-green-400 mt-2 font-medium">
-                                    Tiempo disponible: {timeRemaining}
-                                  </p>
-                                </div>
-                                <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-2 py-1 rounded">
-                                  Activa
-                                </span>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-
-                      {/* Botón cerrar todas las sesiones */}
-                      {otherSessions.length > 0 && (
-                        <Button
-                          onClick={handleLogoutAllDevices}
-                          disabled={isLoggingOut}
-                          variant="destructive"
-                          className="w-full"
-                        >
-                          <LogOut className="w-4 h-4 mr-2" />
-                          {isLoggingOut ? "Cerrando sesiones..." : "Cerrar Todas las Otras Sesiones"}
-                        </Button>
-                      )}
-
-                      {/* Sesiones activas */}
-                      {otherSessions.length > 0 && (
-                        <div className="space-y-3 border-t pt-6">
-                          <h3 className="font-semibold text-slate-600 dark:text-slate-300 text-sm uppercase">
-                            Otras Sesiones Activas ({otherSessions.length})
-                          </h3>
-                          {otherSessions.map((session) => {
-                            const { browser, os } = parseUserAgent(session.userAgent)
-                            const date = new Date(session.expiresAt)
-                            const timeRemaining = calculateTimeRemaining(session.expiresAt)
-                            return (
-                              <div key={session.id} className="border rounded-lg p-4 dark:border-slate-700">
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1">
-                                    <p className="font-semibold text-foreground">{browser}</p>
-                                    <p className="text-sm text-muted-foreground">{os}</p>
-                                    <p className="text-xs text-muted-foreground mt-1">IP: {session.ip}</p>
-                                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-medium">
-                                      Tiempo disponible: {timeRemaining}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {date.toLocaleDateString("es-ES", {
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(session.id)
-                                        setCopiedSessionId(session.id)
-                                        setTimeout(() => setCopiedSessionId(null), 2000)
-                                      }}
-                                      variant="ghost"
-                                      className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                      title="Copiar ID de sesión"
-                                    >
-                                      <Copy className="w-3 h-3" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      className="h-8 px-2"
-                                      onClick={() => handleLogoutDevice(session.id)}
-                                      title="Cerrar sesión en este dispositivo"
-                                    >
-                                      {isLoggingOut ? "..." : "Cerrar"}
-                                    </Button>
-                                  </div>
-                                </div>
-                                {copiedSessionId === session.id && (
-                                  <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                                    Copiado al portapapeles
-                                  </p>
-                                )}
-                              </div>
-                            )
-                          })}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">{parseUserAgent(currentSession.userAgent).browser}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {parseUserAgent(currentSession.userAgent).os}
+                          </p>
                         </div>
+                        <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-100 px-2 py-1 rounded-full">
+                          Activa
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">IP: {currentSession.ip}</p>
+                      <p className="text-xs text-green-700 dark:text-green-300 font-semibold">
+                        Expira en {calculateTimeRemaining(currentSession.expiresAt)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ID: {currentSession.id}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 ml-2 text-xs"
+                          onClick={() => {
+                            navigator.clipboard.writeText(currentSession.id)
+                            setCopiedSessionId(currentSession.id)
+                            setTimeout(() => setCopiedSessionId(null), 2000)
+                          }}
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </p>
+                      {copiedSessionId === currentSession.id && (
+                        <p className="text-xs text-green-600 dark:text-green-400">Copiado al portapapeles</p>
                       )}
                     </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No se pudo identificar la sesión activa.</p>
                   )}
+                </CardContent>
+              </Card>
 
-                  {sessions.length === 0 && (
-                    <Alert>
-                      <AlertDescription>No hay sesiones activas registradas</AlertDescription>
-                    </Alert>
+              <Card className="border-secondary/30 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LogOut className="w-4 h-4" />
+                    Otras sesiones ({otherSessions.length})
+                  </CardTitle>
+                  <CardDescription>Controla el acceso desde otros dispositivos</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {otherSessions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Solo tienes esta sesión activa.</p>
+                  ) : (
+                    otherSessions.map((session) => {
+                      const { browser, os } = parseUserAgent(session.userAgent)
+                      const timeRemaining = calculateTimeRemaining(session.expiresAt)
+                      return (
+                        <div key={session.id} className="border rounded-lg p-4 space-y-2 bg-secondary/10">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <p className="font-semibold text-foreground">{browser}</p>
+                              <p className="text-sm text-muted-foreground">{os}</p>
+                              <p className="text-xs text-muted-foreground mt-1">IP: {session.ip}</p>
+                              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-medium">
+                                Tiempo disponible: {timeRemaining}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(session.expiresAt).toLocaleDateString("es-ES", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(session.id)
+                                  setCopiedSessionId(session.id)
+                                  setTimeout(() => setCopiedSessionId(null), 2000)
+                                }}
+                                variant="ghost"
+                                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                title="Copiar ID de sesión"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-8 px-2"
+                                onClick={() => handleLogoutDevice(session.id)}
+                                title="Cerrar sesión en este dispositivo"
+                                disabled={isLoggingOut}
+                              >
+                                {isLoggingOut ? "..." : "Cerrar"}
+                              </Button>
+                            </div>
+                          </div>
+                          {copiedSessionId === session.id && (
+                            <p className="text-xs text-green-600 dark:text-green-400">Copiado al portapapeles</p>
+                          )}
+                        </div>
+                      )
+                    })
                   )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </TabsContent>

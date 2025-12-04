@@ -1,12 +1,12 @@
 "use client"
 
-import { useAuth } from "@/contexts/auth-context"
-import HomePage from "@/components/home-page"
-import { Spinner } from "@/components/ui/spinner"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import LoginForm from "@/components/login-form"
+import { useAuth } from "@/contexts/auth-context"
+import { Spinner } from "@/components/ui/spinner"
 
-export default function Page() {
+export default function LoginPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
 
@@ -32,5 +32,10 @@ export default function Page() {
     )
   }
 
-  return <HomePage />
+  return (
+    <LoginForm
+      onBackToHome={() => router.push("/")}
+      onLoginSuccess={() => router.replace("/dashboard")}
+    />
+  )
 }

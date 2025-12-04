@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Mail, Phone, MapPin, Globe, LogIn, ChevronLeft, ChevronRight } from "lucide-react"
-import LoginForm from "./login-form"
 import InteractiveMapSection from "./interactive-map-section"
 
 const unidadesAcademicas = [
@@ -60,8 +59,7 @@ const unidadesAcademicas = [
 ]
 
 export default function HomePage() {
-  const [showLogin, setShowLogin] = useState(false)
-  const { user } = useAuth()
+  const router = useRouter()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   const carouselImages = [
@@ -79,18 +77,10 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  if (showLogin) {
-    return <LoginForm onBackToHome={() => setShowLogin(false)} />
-  }
-
-  if (user) {
-    return null // El usuario verá el dashboard
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-white dark:bg-slate-900 sticky top-0 z-50 shadow-sm">
+      <header className="border-b bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
@@ -105,11 +95,7 @@ export default function HomePage() {
               <p className="text-xs text-muted-foreground">Sistema de Gestión de TG</p>
             </div>
           </div>
-          <Button
-            onClick={() => setShowLogin(true)}
-            variant="default"
-            className="bg-primary hover:bg-primary/90 text-white flex gap-2"
-          >
+          <Button onClick={() => router.push("/login")} className="bg-primary hover:bg-primary/90 text-white flex gap-2">
             <LogIn className="w-4 h-4" />
             Iniciar Sesión
           </Button>
@@ -155,9 +141,8 @@ export default function HomePage() {
             <button
               key={idx}
               onClick={() => setCurrentImageIndex(idx)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                idx === currentImageIndex ? "bg-white w-8" : "bg-white/50"
-              }`}
+              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? "bg-white w-8" : "bg-white/50"
+                }`}
             />
           ))}
         </div>
@@ -173,7 +158,7 @@ export default function HomePage() {
           <p className="text-lg text-gray-200 mb-8 max-w-2xl mx-auto">
             Plataforma integral para la administración, seguimiento y evaluación de trabajos de grado en la EMI
           </p>
-          <Button onClick={() => setShowLogin(true)} size="lg" className="bg-primary hover:bg-primary/90 text-white">
+          <Button onClick={() => router.push("/login")} size="lg" className="bg-primary hover:bg-primary/90 text-white">
             Acceder al Sistema
           </Button>
         </div>
@@ -192,12 +177,14 @@ export default function HomePage() {
                 <CardDescription>Acceso a trabajos de grado completados</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button
-                  variant="outline"
-                  className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
-                >
-                  Ir al Repositorio
-                </Button>
+                <a href="https://rgra.emi.edu.bo/#/Login" target="_blank" rel="noopener noreferrer">
+                  <Button
+                    variant="outline"
+                    className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+                  >
+                    Ir al Repositorio
+                  </Button>
+                </a>
               </CardContent>
             </Card>
 
@@ -207,12 +194,14 @@ export default function HomePage() {
                 <CardDescription>Acceso a trabajos de posgrado completados</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button
-                  variant="outline"
-                  className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
-                >
-                  Ir al Repositorio
-                </Button>
+                <a href="https://rpos.emi.edu.bo/#/Login" target="_blank" rel="noopener noreferrer">
+                  <Button
+                    variant="outline"
+                    className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+                  >
+                    Ir al Repositorio
+                  </Button>
+                </a>
               </CardContent>
             </Card>
           </div>
@@ -223,7 +212,7 @@ export default function HomePage() {
       <InteractiveMapSection />
 
       {/* Contacto Section */}
-      {/*<section className="py-16 bg-background">
+      <section className="py-16 bg-background" id="contacto">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12 text-primary">CONTACTO</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -254,7 +243,7 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-      </section>*/}
+      </section>
 
       {/* Footer */}
       <footer className="bg-primary text-primary-foreground py-8 text-center">

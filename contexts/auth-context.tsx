@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import type { User } from "@/lib/types"
 import { apiClient } from "@/lib/api-client"
 
@@ -26,6 +26,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>
   fetchSessions: () => Promise<void>
   logoutAllDevices: () => Promise<void>
+  logoutDevice: (sessionId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -40,7 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const token = apiClient.getAccessToken()
+        let token = apiClient.getAccessToken()
+
+        if (!token) {
+          try {
+            const refreshed = await apiClient.auth.refresh()
+            if ((refreshed as any).access_token) {
+              token = (refreshed as any).access_token
+              apiClient.setAccessToken(token)
+              console.log("[v0] Token refrescado desde cookie de sesión")
+            }
+          } catch (refreshError) {
+            console.warn("[v0] No se pudo refrescar la sesión automáticamente", refreshError)
+          }
+        }
+
         if (token) {
           console.log("[v0] Token encontrado, obteniendo perfil...")
           const profileResponse = await apiClient.profile.get()
@@ -50,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.error("[v0] Error loading profile:", err)
-        localStorage.removeItem("access_token")
+        apiClient.clearAccessToken()
       } finally {
         setLoading(false)
       }
@@ -102,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("[v0] Logout error:", err)
     } finally {
-      localStorage.removeItem("access_token")
+      apiClient.clearAccessToken()
       setUser(null)
       setSessions([])
     }
@@ -124,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     try {
       console.log("[v0] Refrescando perfil...")
       const profileResponse = await apiClient.profile.get()
@@ -133,9 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("[v0] Error refreshing profile:", err)
     }
-  }
+  }, [])
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       console.log("[v0] Obteniendo sesiones activas...")
       const response = await apiClient.auth.sessions()
@@ -143,23 +158,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessions(sessionsList)
       console.log("[v0] Sesiones obtenidas:", sessionsList)
     } catch (err) {
-      console.error("[v0] Error fetching sessions:", err)
+      console.error("[v0] Error fetching sesiones:", err)
     }
-  }
+  }, [])
 
-  const logoutAllDevices = async () => {
+  const logoutAllDevices = useCallback(async () => {
     try {
-      console.log("[v0] Cerrando todas las sesiones...")
+      console.log("[v0] Cerrando todas las sesiones excepto la actual...")
       await apiClient.auth.logoutAll()
-      setSessions([])
-      localStorage.removeItem("access_token")
-      setUser(null)
-      console.log("[v0] Todas las sesiones cerradas")
+      await fetchSessions()
+      console.log("[v0] Todas las sesiones remotas cerradas")
     } catch (err) {
       console.error("[v0] Error logging out all devices:", err)
       throw err
     }
-  }
+  }, [fetchSessions])
+
+  const logoutDevice = useCallback(
+    async (sessionId: string) => {
+      try {
+        console.log("[v0] Cerrando sesión individual:", sessionId)
+        await apiClient.auth.logoutSession(sessionId)
+        await fetchSessions()
+      } catch (err) {
+        console.error("[v0] Error cerrando sesión específica:", err)
+        throw err
+      }
+    },
+    [fetchSessions],
+  )
   // </CHANGE>
 
   return (
@@ -175,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         fetchSessions,
         logoutAllDevices,
+        logoutDevice,
       }}
     >
       {children}
