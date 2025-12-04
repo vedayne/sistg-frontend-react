@@ -14,13 +14,24 @@ import { Camera, Lock, LogOut, Smartphone, Copy } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function ProfilePage() {
-  const { user, loading, updatePassword, fetchSessions, logoutAllDevices, logoutDevice, sessions } = useAuth()
+  const {
+    user,
+    loading,
+    updatePassword,
+    fetchSessions,
+    logoutAllDevices,
+    logoutDevice,
+    uploadProfileImage,
+    sessions,
+  } = useAuth()
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [passwordError, setPasswordError] = useState("")
   const [passwordSuccess, setPasswordSuccess] = useState("")
   const [activeTab, setActiveTab] = useState<"perfil" | "sesiones">("perfil")
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadMessage, setUploadMessage] = useState("")
   const [passwordData, setPasswordData] = useState({
     current: "",
     new: "",
@@ -87,14 +98,20 @@ export default function ProfilePage() {
     )
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+    setIsUploadingImage(true)
+    setUploadMessage("")
+    try {
+      const result = await uploadProfileImage(file)
+      setProfileImage(result.archivo.remotepath || URL.createObjectURL(file))
+      setUploadMessage("Foto de perfil actualizada")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo subir la imagen"
+      setUploadMessage(message)
+    } finally {
+      setIsUploadingImage(false)
     }
   }
 
@@ -208,10 +225,17 @@ export default function ProfilePage() {
                   />
                   <label className="absolute bottom-2 right-2 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90">
                     <Camera className="w-4 h-4" />
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={isUploadingImage}
+                    />
                   </label>
                 </div>
-                <p className="text-xs text-muted-foreground">Subida de imagen disponible próximamente</p>
+                {uploadMessage && <p className="text-xs text-green-600 dark:text-green-400">{uploadMessage}</p>}
+                {isUploadingImage && <p className="text-xs text-muted-foreground">Subiendo foto...</p>}
                 <Button
                   onClick={() => setShowPasswordDialog(true)}
                   className="w-full bg-primary hover:bg-primary/90 text-white flex gap-2"

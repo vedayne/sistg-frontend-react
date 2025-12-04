@@ -27,6 +27,9 @@ interface AuthContextType {
   fetchSessions: () => Promise<void>
   logoutAllDevices: () => Promise<void>
   logoutDevice: (sessionId: string) => Promise<void>
+  uploadProfileImage: (
+    file: File,
+  ) => Promise<{ message: string; archivo: { id: number; remotepath: string; mimetype: string } }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -187,6 +190,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [fetchSessions],
   )
+
+  const uploadProfileImage = useCallback(
+    async (file: File) => {
+      try {
+        const response = await apiClient.profile.uploadImage(file)
+        if (user) {
+          setUser({
+            ...user,
+            fotoPerfil: {
+              id: response.archivo.id.toString(),
+              remotepath: response.archivo.remotepath,
+              mimetype: response.archivo.mimetype,
+            },
+          })
+        }
+        return response
+      } catch (err) {
+        console.error("[v0] Error subiendo foto de perfil:", err)
+        throw err
+      }
+    },
+    [user],
+  )
   // </CHANGE>
 
   return (
@@ -203,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchSessions,
         logoutAllDevices,
         logoutDevice,
+        uploadProfileImage,
       }}
     >
       {children}

@@ -1,3 +1,5 @@
+import type { DocenteBasicInfo, EstudianteBasicInfo, PaginatedResponse, UserBasicInfo } from "./types"
+
 const API_BASE_URL = "https://sistg-backend.onrender.com/rtg"
 
 interface ApiResponse<T> {
@@ -81,6 +83,7 @@ export const apiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { skipAuth, _isRefreshRequest, ...requestInit } = options
     const headers = new Headers(requestInit.headers)
+    const isFormData = typeof FormData !== "undefined" && requestInit.body instanceof FormData
 
     if (!skipAuth) {
       const token = apiClient.getAccessToken()
@@ -89,7 +92,9 @@ export const apiClient = {
       }
     }
 
-    headers.set("Content-Type", "application/json")
+    if (!isFormData && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json")
+    }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...requestInit, headers })
 
@@ -155,6 +160,18 @@ export const apiClient = {
         method: "PATCH",
         body: JSON.stringify({ currentPassword, newPassword }),
       }),
+
+    uploadImage: async (image: File) => {
+      const formData = new FormData()
+      formData.append("image", image)
+      return apiClient.request<{ message: string; archivo: { id: number; remotepath: string; mimetype: string } }>(
+        "/profile/image",
+        {
+          method: "POST",
+          body: formData,
+        },
+      )
+    },
   },
 
   students: {
@@ -163,16 +180,30 @@ export const apiClient = {
       limit?: number
       search?: string
       especialidad?: string
+      idSaga?: string | number
+      isActive?: boolean
+      sortBy?: "id" | "idSaga"
+      sortOrder?: "asc" | "desc"
+      fields?: string
     }) => {
       const query = new URLSearchParams()
       if (params?.page) query.append("page", params.page.toString())
       if (params?.limit) query.append("limit", params.limit.toString())
       if (params?.search) query.append("search", params.search)
       if (params?.especialidad) query.append("especialidad", params.especialidad)
-      return apiClient.request(`/students?${query}`, {})
+      if (params?.idSaga) query.append("idSaga", params.idSaga.toString())
+      if (typeof params?.isActive === "boolean") query.append("isActive", String(params.isActive))
+      if (params?.sortBy) query.append("sortBy", params.sortBy)
+      if (params?.sortOrder) query.append("sortOrder", params.sortOrder)
+      if (params?.fields) query.append("fields", params.fields)
+      return apiClient.request<PaginatedResponse<EstudianteBasicInfo>>(`/students?${query.toString()}`, {})
     },
 
-    get: async (id: string) => apiClient.request(`/students/${id}`, {}),
+    get: async (id: string, params?: { fields?: string }) => {
+      const query = new URLSearchParams()
+      if (params?.fields) query.append("fields", params.fields)
+      return apiClient.request<EstudianteBasicInfo>(`/students/${id}${query.size ? `?${query}` : ""}`, {})
+    },
   },
 
   teachers: {
@@ -181,16 +212,52 @@ export const apiClient = {
       limit?: number
       search?: string
       especialidad?: string
+      idSaga?: string | number
+      isActive?: boolean
+      sortBy?: "id" | "idSaga"
+      sortOrder?: "asc" | "desc"
+      fields?: string
     }) => {
       const query = new URLSearchParams()
       if (params?.page) query.append("page", params.page.toString())
       if (params?.limit) query.append("limit", params.limit.toString())
       if (params?.search) query.append("search", params.search)
       if (params?.especialidad) query.append("especialidad", params.especialidad)
-      return apiClient.request(`/teachers?${query}`, {})
+      if (params?.idSaga) query.append("idSaga", params.idSaga.toString())
+      if (typeof params?.isActive === "boolean") query.append("isActive", String(params.isActive))
+      if (params?.sortBy) query.append("sortBy", params.sortBy)
+      if (params?.sortOrder) query.append("sortOrder", params.sortOrder)
+      if (params?.fields) query.append("fields", params.fields)
+      return apiClient.request<PaginatedResponse<DocenteBasicInfo>>(`/teachers?${query.toString()}`, {})
     },
 
-    get: async (id: string) => apiClient.request(`/teachers/${id}`, {}),
+    get: async (id: string, params?: { fields?: string }) => {
+      const query = new URLSearchParams()
+      if (params?.fields) query.append("fields", params.fields)
+      return apiClient.request<DocenteBasicInfo>(`/teachers/${id}${query.size ? `?${query}` : ""}`, {})
+    },
+  },
+
+  users: {
+    list: async (params?: {
+      page?: number
+      limit?: number
+      search?: string
+      sortBy?: "id" | "email" | "status" | "createdAt"
+      sortOrder?: "asc" | "desc"
+      fields?: string
+    }) => {
+      const query = new URLSearchParams()
+      if (params?.page) query.append("page", params.page.toString())
+      if (params?.limit) query.append("limit", params.limit.toString())
+      if (params?.search) query.append("search", params.search)
+      if (params?.sortBy) query.append("sortBy", params.sortBy)
+      if (params?.sortOrder) query.append("sortOrder", params.sortOrder)
+      if (params?.fields) query.append("fields", params.fields)
+      return apiClient.request<PaginatedResponse<UserBasicInfo>>(`/users?${query.toString()}`, {})
+    },
+
+    get: async (id: string) => apiClient.request<UserBasicInfo>(`/users/${id}`, {}),
   },
 
   projects: {

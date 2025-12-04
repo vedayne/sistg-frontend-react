@@ -57,6 +57,55 @@ export interface User {
   mustChangePassword?: boolean
 }
 
+export interface Pagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  pagination: Pagination
+}
+
+export interface EstudianteBasicInfo {
+  id: number
+  idSaga: number
+  codEstudiante: string
+  nombreCompleto: string
+  email: string
+  carrera?: string
+  semestre?: string | null
+}
+
+export interface DocenteBasicInfo {
+  id: number
+  idSaga: number
+  codDocente: string
+  nombreCompleto: string
+  email: string
+  especialidad?: string
+}
+
+export interface UserBasicInfo {
+  id: string
+  email: string
+  status: string
+  nombres?: string
+  apPaterno?: string
+  apMaterno?: string
+  fullName?: string
+  grado?: string
+  roles?: string[]
+  tipo?: string
+  cod?: string
+  especialidad?: string
+  idSaga?: number
+}
+
 export interface Entrega {
   id: number
   numeroEntrega: number

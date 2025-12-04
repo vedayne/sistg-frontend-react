@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Plus, Edit2, Printer } from "lucide-react"
+import { Calendar, Plus, Edit2, Printer, Loader2 } from "lucide-react"
+import { apiClient } from "@/lib/api-client"
 
 interface Tutor {
   id: string
@@ -29,19 +30,44 @@ export default function NombramientoTutorPage() {
     telefono: "",
     especialidad: "",
   })
-  const [tutors, setTutors] = useState<Tutor[]>([
-    { id: "1", nombre: "DR. RAMON GARCIA", email: "rgarcia@emi.edu.bo", telefono: "71234567", externo: false },
-    { id: "2", nombre: "ING. CAROLINA LOPEZ", email: "clopez@emi.edu.bo", telefono: "72345678", externo: false },
-    { id: "3", nombre: "LIC. MIGUEL SANTOS", email: "msantos@emi.edu.bo", telefono: "73456789", externo: false },
-  ])
+  const [tutors, setTutors] = useState<Tutor[]>([])
   const [externalTutors, setExternalTutors] = useState<Tutor[]>([])
   const [isEditing, setIsEditing] = useState(false)
+  const [isLoadingTutors, setIsLoadingTutors] = useState(false)
+  const [tutorError, setTutorError] = useState<string | null>(null)
 
   const filteredTutors = tutors.filter(
     (t) =>
       t.nombre.toLowerCase().includes(tutorSearch.toLowerCase()) ||
       t.email.toLowerCase().includes(tutorSearch.toLowerCase()),
   )
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      ;(async () => {
+        setIsLoadingTutors(true)
+        try {
+          const response = await apiClient.teachers.list({ search: tutorSearch || undefined, limit: 10 })
+          const mapped: Tutor[] = response.data.map((doc) => ({
+            id: doc.id.toString(),
+            nombre: doc.nombreCompleto,
+            email: doc.email,
+            telefono: "N/A",
+            externo: false,
+          }))
+          setTutors(mapped)
+          setTutorError(null)
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "No se pudieron cargar los docentes"
+          setTutorError(message)
+        } finally {
+          setIsLoadingTutors(false)
+        }
+      })()
+    }, 300)
+
+    return () => clearTimeout(handler)
+  }, [tutorSearch])
 
   const handleAddExternalTutor = () => {
     if (externalTutorData.nombre && externalTutorData.email && externalTutorData.telefono) {
@@ -66,8 +92,6 @@ export default function NombramientoTutorPage() {
     }
     alert(`Imprimiendo carta de ${type === "aceptacion" ? "aceptación de tutoría" : "tutor"}...`)
   }
-
-  const allTutors = [...tutors, ...externalTutors]
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -106,21 +130,32 @@ export default function NombramientoTutorPage() {
                 onChange={(e) => setTutorSearch(e.target.value)}
                 className="mb-2"
               />
-              {tutorSearch && filteredTutors.length > 0 && (
+              {isLoadingTutors && (
+                <div className="absolute top-full left-0 mt-1 text-xs text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Buscando docentes...
+                </div>
+              )}
+              {tutorError && <p className="text-xs text-red-600 mt-1">{tutorError}</p>}
+              {tutorSearch && (
                 <div className="absolute top-full left-0 right-0 border rounded-lg bg-card shadow-lg z-10 max-h-48 overflow-y-auto">
-                  {filteredTutors.map((tutor) => (
-                    <button
-                      key={tutor.id}
-                      onClick={() => {
-                        setSelectedTutor(tutor)
-                        setTutorSearch("")
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-secondary/20 border-b last:border-b-0 transition-colors"
-                    >
-                      <p className="font-medium">{tutor.nombre}</p>
-                      <p className="text-xs text-muted-foreground">{tutor.email}</p>
-                    </button>
-                  ))}
+                  {filteredTutors.length > 0 ? (
+                    filteredTutors.map((tutor) => (
+                      <button
+                        key={tutor.id}
+                        onClick={() => {
+                          setSelectedTutor(tutor)
+                          setTutorSearch("")
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-secondary/20 border-b last:border-b-0 transition-colors"
+                      >
+                        <p className="font-medium">{tutor.nombre}</p>
+                        <p className="text-xs text-muted-foreground">{tutor.email}</p>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-muted-foreground">No se encontraron docentes</div>
+                  )}
                 </div>
               )}
             </div>

@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
+import { apiClient } from "@/lib/api-client"
 
 const PROYECTOS_DATA = [
   {
@@ -40,6 +41,7 @@ export default function ProyectosPage() {
   const { user } = useAuth()
   const [searchGestion, setSearchGestion] = useState("")
   const [filterEspecialidad, setFilterEspecialidad] = useState("")
+  const [proyectos, setProyectos] = useState(PROYECTOS_DATA)
   const [selectedProyecto, setSelectedProyecto] = useState<(typeof PROYECTOS_DATA)[0] | null>(null)
   const [isEditingProyecto, setIsEditingProyecto] = useState(false)
   const [showNewProyecto, setShowNewProyecto] = useState(false)
@@ -55,18 +57,57 @@ export default function ProyectosPage() {
     areaInvestigacion: "",
     lineaInvestigacion: "",
   })
+  const [loadingProyectos, setLoadingProyectos] = useState(false)
+  const [proyectosError, setProyectosError] = useState<string | null>(null)
 
   const canCreateProject = user?.roles?.some((r) =>
     ["DOCENTE_TG", "SECRETARIA", "JEFE_CARRERA", "DDE", "ADMINISTRADOR"].includes(r.name),
   )
 
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoadingProyectos(true)
+      try {
+        const response = await apiClient.projects.list()
+        const mapped = Array.isArray(response)
+          ? response.map((project: any, idx: number) => ({
+              id: project.id ?? idx,
+              numero: idx + 1,
+              proyecto: project.titulo || project.nombre || "Proyecto",
+              areaInvestigacion: project.lineaInvestigacion?.areaInvestigacion?.name || "N/A",
+              lineaInvestigacion: project.lineaInvestigacion?.name || "N/A",
+              estudiante:
+                project.estudiante?.nombreCompleto ||
+                project.estudiante?.email ||
+                project.estudiante?.nombre ||
+                "N/A",
+              gestion: project.gestion?.gestion || "",
+              especialidad:
+                project.estudiante?.especialidad ||
+                project.estudiante?.carrera ||
+                project.estudiante?.unidadAcademica ||
+                "N/A",
+            }))
+          : PROYECTOS_DATA
+        setProyectos(mapped.length ? mapped : PROYECTOS_DATA)
+        setProyectosError(null)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "No se pudieron cargar los proyectos"
+        setProyectosError(message)
+      } finally {
+        setLoadingProyectos(false)
+      }
+    }
+    fetchProjects()
+  }, [])
+
   const filteredProyectos = useMemo(() => {
-    return PROYECTOS_DATA.filter((proyecto) => {
+    return proyectos.filter((proyecto) => {
       const matchGestion = searchGestion === "" || proyecto.gestion === searchGestion
       const matchEspecialidad = filterEspecialidad === "" || proyecto.especialidad === filterEspecialidad
       return matchGestion && matchEspecialidad
     })
-  }, [searchGestion, filterEspecialidad])
+  }, [proyectos, searchGestion, filterEspecialidad])
 
   const handleOpenProyecto = (proyecto: (typeof PROYECTOS_DATA)[0]) => {
     setSelectedProyecto(proyecto)
@@ -175,6 +216,13 @@ export default function ProyectosPage() {
       {/* Tabla de Proyectos */}
       <Card>
         <CardContent className="pt-6">
+          {loadingProyectos && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Cargando proyectos...
+            </div>
+          )}
+          {proyectosError && <p className="text-sm text-red-600 mb-2">{proyectosError}</p>}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
