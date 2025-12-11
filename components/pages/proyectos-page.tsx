@@ -1,474 +1,345 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Trash2, Eye, Search } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
-
-const PROYECTOS_DATA = [
-  {
-    id: 1,
-    numero: 1,
-    proyecto: "Sistema de Gestión de Trabajos de Grado EMI",
-    areaInvestigacion: "Ingeniería de Software",
-    lineaInvestigacion: "Sistemas de Información",
-    estudiante: "Miguel Ángel Lipa Yahuita",
-    gestion: "2024",
-    especialidad: "Informática",
-  },
-  {
-    id: 2,
-    numero: 2,
-    proyecto: "Aplicación Móvil para Gestión Educativa",
-    areaInvestigacion: "Tecnología Educativa",
-    lineaInvestigacion: "Aplicaciones Móviles",
-    estudiante: "María López González",
-    gestion: "2024",
-    especialidad: "Informática",
-  },
-]
-
-const GESTIONES = ["2023", "2024", "2025"]
-const ESPECIALIDADES = ["Informática", "Electrónica", "Mecánica", "Civil"]
-const ESTUDIANTES = ["Miguel Ángel Lipa Yahuita", "María López González", "Juan Pérez", "Ana García"]
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { ProjectResponseDto, CreateProjectDto, ResearchLine, Gestion, EstudianteBasicInfo, DocenteBasicInfo } from "@/lib/types"
 
 export default function ProyectosPage() {
   const { user } = useAuth()
-  const [searchGestion, setSearchGestion] = useState("")
-  const [filterEspecialidad, setFilterEspecialidad] = useState("")
-  const [proyectos, setProyectos] = useState(PROYECTOS_DATA)
-  const [selectedProyecto, setSelectedProyecto] = useState<(typeof PROYECTOS_DATA)[0] | null>(null)
-  const [isEditingProyecto, setIsEditingProyecto] = useState(false)
-  const [showNewProyecto, setShowNewProyecto] = useState(false)
-  const [editData, setEditData] = useState({
-    areaInvestigacion: "",
-    lineaInvestigacion: "",
-  })
-  const [newProyecto, setNewProyecto] = useState({
-    estudiante: "",
-    proyecto: "",
-    gestion: "",
-    especialidad: "",
-    areaInvestigacion: "",
-    lineaInvestigacion: "",
-  })
-  const [loadingProyectos, setLoadingProyectos] = useState(false)
-  const [proyectosError, setProyectosError] = useState<string | null>(null)
+  const [proyectos, setProyectos] = useState<ProjectResponseDto[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const canCreateProject = user?.roles?.some((r) =>
-    ["DOCENTE_TG", "SECRETARIA", "JEFE_CARRERA", "DDE", "ADMINISTRADOR"].includes(r.name),
-  )
+  // Create Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createLoading, setCreateLoading] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<EstudianteBasicInfo | null>(null)
+  const [studentSearchTerm, setStudentSearchTerm] = useState("")
+  const [studentSearchResults, setStudentSearchResults] = useState<EstudianteBasicInfo[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  // Dropdown Data
+  const [researchLines, setResearchLines] = useState<ResearchLine[]>([])
+  const [gestiones, setGestiones] = useState<Gestion[]>([])
+
+  // Form State
+  const [formData, setFormData] = useState<Partial<CreateProjectDto>>({
+    titulo: "",
+    idLineaInv: 0,
+    idGestion: 0,
+    idDocTG: 0, // Should be selected
+    idDocTutor: 0,
+    idModalidad: 1 // Default to 1 for now if we don't have modalities API
+  })
+
+  // Role Checks
+  const isAdmin = user?.roles?.some(r => r.name === "ADMINISTRADOR")
+  const isStudent = user?.roles?.some(r => r.name === "ESTUDIANTE")
+  const canCreate = isStudent || isAdmin || user?.roles?.some(r => ["DOCENTE_TG", "JEFE_CARRERA", "SECRETARIA"].includes(r.name))
+
+  // Fetch Data
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      let data: ProjectResponseDto[] = []
+
+      if (isStudent) {
+        // If student, try to find "my" projects via some ID lookup or endpoint
+        // For now, if we don't have the student ID in 'user', we might fail or list all if the API filters by token?
+        // Let's try list() first -> usually this endpoints returns ALL for admins, but maybe filtered for others?
+
+        if (user?.academico?.idSaga || user?.id) {
+          // Ideally we call /students/me or similar. 
+          // Let's try listing all for now as a fallback if specific ID is missing, or rely on backend token filtering.
+          const response = await apiClient.projects.list()
+          data = Array.isArray(response) ? response : (response as any).data || []
+        } else {
+          const response = await apiClient.projects.list()
+          data = Array.isArray(response) ? response : (response as any).data || []
+        }
+      } else {
+        // Admin / Others
+        const response = await apiClient.projects.list()
+        // Handle if response is array or paginated object
+        data = Array.isArray(response) ? response : (response as any).data || []
+      }
+
+      setProyectos(data)
+    } catch (err) {
+      console.error("Error loading projects:", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [isStudent, user])
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      setLoadingProyectos(true)
-      try {
-        const response = await apiClient.projects.list()
-        const mapped = Array.isArray(response)
-          ? response.map((project: any, idx: number) => ({
-              id: project.id ?? idx,
-              numero: idx + 1,
-              proyecto: project.titulo || project.nombre || "Proyecto",
-              areaInvestigacion: project.lineaInvestigacion?.areaInvestigacion?.name || "N/A",
-              lineaInvestigacion: project.lineaInvestigacion?.name || "N/A",
-              estudiante:
-                project.estudiante?.nombreCompleto ||
-                project.estudiante?.email ||
-                project.estudiante?.nombre ||
-                "N/A",
-              gestion: project.gestion?.gestion || "",
-              especialidad:
-                project.estudiante?.especialidad ||
-                project.estudiante?.carrera ||
-                project.estudiante?.unidadAcademica ||
-                "N/A",
-            }))
-          : PROYECTOS_DATA
-        setProyectos(mapped.length ? mapped : PROYECTOS_DATA)
-        setProyectosError(null)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "No se pudieron cargar los proyectos"
-        setProyectosError(message)
-      } finally {
-        setLoadingProyectos(false)
+    fetchData()
+  }, [fetchData])
+
+  // Load dropdown data when opening modal
+  useEffect(() => {
+    if (showCreateModal) {
+      const loadOptions = async () => {
+        try {
+          const [linesRes, gestionesRes] = await Promise.all([
+            apiClient.researchLines.list(),
+            apiClient.gestiones.list()
+          ])
+
+          setResearchLines(Array.isArray(linesRes) ? linesRes : (linesRes as any).data || [])
+
+          // Gestiones: handle array/pagination
+          const gestionesData = Array.isArray(gestionesRes) ? gestionesRes : (gestionesRes as any).data || []
+          setGestiones(gestionesData.filter((g: any) => g.isActive)) // Only active gestiones
+
+        } catch (e) {
+          console.error("Error loading options", e)
+        }
       }
+      loadOptions()
     }
-    fetchProjects()
-  }, [])
+  }, [showCreateModal])
 
-  const filteredProyectos = useMemo(() => {
-    return proyectos.filter((proyecto) => {
-      const matchGestion = searchGestion === "" || proyecto.gestion === searchGestion
-      const matchEspecialidad = filterEspecialidad === "" || proyecto.especialidad === filterEspecialidad
-      return matchGestion && matchEspecialidad
-    })
-  }, [proyectos, searchGestion, filterEspecialidad])
-
-  const handleOpenProyecto = (proyecto: (typeof PROYECTOS_DATA)[0]) => {
-    setSelectedProyecto(proyecto)
-    setEditData({
-      areaInvestigacion: proyecto.areaInvestigacion,
-      lineaInvestigacion: proyecto.lineaInvestigacion,
-    })
-    setIsEditingProyecto(false)
+  const handleDelete = async (id: number) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este proyecto?")) return
+    try {
+      await apiClient.projects.delete(id)
+      setProyectos(prev => prev.filter(p => p.id !== id))
+    } catch (err) {
+      alert("Error al eliminar proyecto")
+    }
   }
 
-  const handleSaveChanges = () => {
-    console.log("Guardar cambios:", editData)
-    setIsEditingProyecto(false)
+  const handleSearchStudent = async (term: string) => {
+    setStudentSearchTerm(term)
+    if (term.length < 3) return
+    setSearchLoading(true)
+    try {
+      const res = await apiClient.students.list({ search: term, limit: 5 })
+      setStudentSearchResults(res.data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSearchLoading(false)
+    }
   }
 
-  const handleSaveNewProyecto = () => {
-    if (!newProyecto.estudiante || !newProyecto.proyecto || !newProyecto.gestion || !newProyecto.especialidad) {
-      alert("Por favor completa todos los campos requeridos")
+  const handleCreateRequest = async () => {
+    // Validate
+    if (!formData.titulo || !formData.idLineaInv || !formData.idGestion) {
+      alert("Faltan campos obligatorios")
       return
     }
-    console.log("Nuevo proyecto creado:", newProyecto)
-    setShowNewProyecto(false)
-    setNewProyecto({
-      estudiante: "",
-      proyecto: "",
-      gestion: "",
-      especialidad: "",
-      areaInvestigacion: "",
-      lineaInvestigacion: "",
-    })
-  }
 
-  const documentButtons = [
-    { label: "Tribunal", color: "bg-gray-600 hover:bg-gray-700" },
-    { label: "Aval", color: "bg-blue-600 hover:bg-blue-700" },
-    { label: "Bitácora", color: "bg-slate-800 hover:bg-slate-700" },
-    { label: "Acta", color: "bg-green-600 hover:bg-green-700" },
-    { label: "Nota de Servicio", color: "bg-blue-600 hover:bg-blue-700" },
-    { label: "Temario", color: "bg-blue-600 hover:bg-blue-700" },
-    { label: "Memo Asignación Tutor", color: "bg-slate-700 hover:bg-slate-600" },
-    { label: "Carta de Aprobación Perfil", color: "bg-gray-600 hover:bg-gray-700" },
-    { label: "Informe de Revisión", color: "bg-yellow-600 hover:bg-yellow-700" },
-    { label: "Memo Aviso Defensa", color: "bg-cyan-600 hover:bg-cyan-700" },
-    { label: "Nota de Servicio Empastado", color: "bg-blue-600 hover:bg-blue-700" },
-  ]
+    // Determine Student ID
+    let studentId = selectedStudent?.id
+    if (isStudent) {
+      // If I am student, I need my own ID.
+      // Attempt to get it from context or assume backend handles it?
+      // The DTO requires idEstudiante.
+      // use idSaga if available as a fallback guess
+      studentId = user?.academico?.idSaga || (user?.id ? parseInt(user.id) : 0)
+    }
+
+    if (!studentId) {
+      alert("No se ha identificado el estudiante para este proyecto.")
+      return
+    }
+
+    setCreateLoading(true)
+    try {
+      await apiClient.projects.create({
+        titulo: formData.titulo!,
+        idEstudiante: studentId,
+        idLineaInv: Number(formData.idLineaInv),
+        idGestion: Number(formData.idGestion),
+        idModalidad: Number(formData.idModalidad) || 1,
+        idDocTG: Number(formData.idDocTG) || 0, // Handle 0 if not selected (might fail backend validation)
+        idDocTutor: Number(formData.idDocTutor) || 0,
+        idDocRev1: 0,
+      })
+      setShowCreateModal(false)
+      fetchData()
+      setFormData({})
+      setSelectedStudent(null)
+    } catch (err) {
+      console.error(err)
+      alert("Error al crear proyecto")
+    } finally {
+      setCreateLoading(false)
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-primary mb-2">Proyectos</h1>
-          <p className="text-muted-foreground">Gestión de proyectos de trabajos de grado</p>
+          <h1 className="text-3xl font-bold text-primary mb-2">Proyectos de Grado</h1>
+          <p className="text-muted-foreground">Listado y gestión de proyectos activos</p>
         </div>
-        {canCreateProject && (
-          <Button
-            onClick={() => setShowNewProyecto(true)}
-            className="bg-primary hover:bg-primary/90 text-white flex gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            NUEVO PROYECTO
+        {canCreate && (
+          <Button onClick={() => setShowCreateModal(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Nuevo Proyecto
           </Button>
         )}
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filtros de Búsqueda</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Gestión</label>
-              <select
-                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                value={searchGestion}
-                onChange={(e) => setSearchGestion(e.target.value)}
-              >
-                <option value="">Todas las gestiones</option>
-                {GESTIONES.map((gestion) => (
-                  <option key={gestion} value={gestion}>
-                    {gestion}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Especialidad</label>
-              <select
-                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                value={filterEspecialidad}
-                onChange={(e) => setFilterEspecialidad(e.target.value)}
-              >
-                <option value="">Todas las especialidades</option>
-                {ESPECIALIDADES.map((esp) => (
-                  <option key={esp} value={esp}>
-                    {esp}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabla de Proyectos */}
       <Card>
         <CardContent className="pt-6">
-          {loadingProyectos && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Cargando proyectos...
+          {loading ? (
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left">
+                    <th className="p-3 font-semibold">Proyecto</th>
+                    <th className="p-3 font-semibold">Estudiante</th>
+                    <th className="p-3 font-semibold">Investigación</th>
+                    <th className="p-3 font-semibold">Gestión</th>
+                    <th className="p-3 font-semibold">Estado</th>
+                    <th className="p-3 font-semibold">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proyectos.length > 0 ? (
+                    proyectos.map((p) => (
+                      <tr key={p.id} className="border-b hover:bg-muted/50">
+                        <td className="p-3 font-medium">{p.titulo}</td>
+                        <td className="p-3">{p.estudiante?.nombreCompleto || "-"}</td>
+                        <td className="p-3">
+                          <div className="flex flex-col text-xs">
+                            <span>{p.lineaInvestigacion?.name || "-"}</span>
+                          </div>
+                        </td>
+                        <td className="p-3"><Badge variant="outline">{p.gestion?.gestion}</Badge></td>
+                        <td className="p-3">
+                          {p.isActive ? <Badge className="bg-green-100 text-green-800">Activo</Badge> : <Badge variant="secondary">Inactivo</Badge>}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" title="Ver Detalles">
+                              <Eye className="w-4 h-4 text-primary" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)} title="Eliminar">
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No se encontraron proyectos.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
-          {proyectosError && <p className="text-sm text-red-600 mb-2">{proyectosError}</p>}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b-2 border-primary">
-                  <th className="text-left py-3 px-4 font-bold">No.</th>
-                  <th className="text-left py-3 px-4 font-bold">Proyecto</th>
-                  <th className="text-left py-3 px-4 font-bold">Área de Investigación</th>
-                  <th className="text-left py-3 px-4 font-bold">Línea de Investigación</th>
-                  <th className="text-left py-3 px-4 font-bold">Estudiante</th>
-                  <th className="text-left py-3 px-4 font-bold">Gestión</th>
-                  <th className="text-left py-3 px-4 font-bold">Especialidad</th>
-                  <th className="text-left py-3 px-4 font-bold">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProyectos.length > 0 ? (
-                  filteredProyectos.map((proyecto) => (
-                    <tr key={proyecto.id} className="border-b hover:bg-secondary/50 dark:hover:bg-slate-800">
-                      <td className="py-3 px-4">{proyecto.numero}</td>
-                      <td className="py-3 px-4 font-medium text-sm">{proyecto.proyecto}</td>
-                      <td className="py-3 px-4 text-sm">{proyecto.areaInvestigacion}</td>
-                      <td className="py-3 px-4 text-sm">{proyecto.lineaInvestigacion}</td>
-                      <td className="py-3 px-4 text-sm">{proyecto.estudiante}</td>
-                      <td className="py-3 px-4">
-                        <Badge variant="outline">{proyecto.gestion}</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge className="bg-secondary text-secondary-foreground">{proyecto.especialidad}</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button
-                          size="sm"
-                          onClick={() => handleOpenProyecto(proyecto)}
-                          className="bg-cyan-600 hover:bg-cyan-700 text-white"
-                        >
-                          DETALLES
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="py-4 text-center text-muted-foreground">
-                      No se encontraron proyectos
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
         </CardContent>
       </Card>
 
-      {/* Modal de Nuevo Proyecto */}
-      <Dialog open={showNewProyecto} onOpenChange={setShowNewProyecto}>
+      {/* CREATE MODAL */}
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-primary">Crear Nuevo Proyecto</DialogTitle>
+            <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Estudiante *</label>
-                <select
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                  value={newProyecto.estudiante}
-                  onChange={(e) => setNewProyecto({ ...newProyecto, estudiante: e.target.value })}
-                >
-                  <option value="">Selecciona estudiante</option>
-                  {ESTUDIANTES.map((est) => (
-                    <option key={est} value={est}>
-                      {est}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Proyecto *</label>
-                <Input
-                  disabled
-                  placeholder="Se carga desde SAGA"
-                  className="bg-muted text-muted-foreground"
-                  value={newProyecto.proyecto}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Gestión *</label>
-                <select
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                  value={newProyecto.gestion}
-                  onChange={(e) => setNewProyecto({ ...newProyecto, gestion: e.target.value })}
-                >
-                  <option value="">Selecciona gestión</option>
-                  {GESTIONES.map((gest) => (
-                    <option key={gest} value={gest}>
-                      {gest}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Especialidad *</label>
-                <select
-                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                  value={newProyecto.especialidad}
-                  onChange={(e) => setNewProyecto({ ...newProyecto, especialidad: e.target.value })}
-                >
-                  <option value="">Selecciona especialidad</option>
-                  {ESPECIALIDADES.map((esp) => (
-                    <option key={esp} value={esp}>
-                      {esp}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="grid gap-4 py-4">
 
-            <div className="border-t pt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Área de Investigación</label>
-                <Input
-                  placeholder="Ingresa el área de investigación"
-                  value={newProyecto.areaInvestigacion}
-                  onChange={(e) => setNewProyecto({ ...newProyecto, areaInvestigacion: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Línea de Investigación</label>
-                <Input
-                  placeholder="Ingresa la línea de investigación"
-                  value={newProyecto.lineaInvestigacion}
-                  onChange={(e) => setNewProyecto({ ...newProyecto, lineaInvestigacion: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-4">
-              <Button variant="outline" onClick={() => setShowNewProyecto(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveNewProyecto} className="bg-primary hover:bg-primary/90 text-white">
-                Guardar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Detalles del Proyecto */}
-      <Dialog open={!!selectedProyecto} onOpenChange={() => setSelectedProyecto(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-primary">Detalles del Proyecto</DialogTitle>
-          </DialogHeader>
-          {selectedProyecto && (
-            <div className="space-y-6">
-              {/* Datos de solo lectura */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Estudiante</p>
-                  <p className="font-medium">{selectedProyecto.estudiante}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Proyecto</p>
-                  <p className="font-medium">{selectedProyecto.proyecto}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Gestión</p>
-                  <p className="font-medium">{selectedProyecto.gestion}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Especialidad</p>
-                  <p className="font-medium">{selectedProyecto.especialidad}</p>
-                </div>
-              </div>
-
-              <div className="border-t pt-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Área de Investigación</label>
-                  {isEditingProyecto ? (
-                    <Input
-                      value={editData.areaInvestigacion}
-                      onChange={(e) => setEditData({ ...editData, areaInvestigacion: e.target.value })}
-                      placeholder="Ingresa el área de investigación"
-                    />
-                  ) : (
-                    <p className="font-medium">{editData.areaInvestigacion}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Línea de Investigación</label>
-                  {isEditingProyecto ? (
-                    <Input
-                      value={editData.lineaInvestigacion}
-                      onChange={(e) => setEditData({ ...editData, lineaInvestigacion: e.target.value })}
-                      placeholder="Ingresa la línea de investigación"
-                    />
-                  ) : (
-                    <p className="font-medium">{editData.lineaInvestigacion}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-3">Documentos Relacionados:</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {documentButtons.map((btn) => (
-                    <Button key={btn.label} className={`${btn.color} text-white text-xs `} size="sm">
-                      {btn.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <label className="block text-sm font-medium mb-2">Fecha de Documento</label>
-                <Input type="date" className="max-w-xs" />
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                {!isEditingProyecto ? (
-                  <>
-                    <Button variant="outline" onClick={() => setSelectedProyecto(null)}>
-                      Cerrar
-                    </Button>
-                    <Button
-                      onClick={() => setIsEditingProyecto(true)}
-                      className="bg-primary hover:bg-primary/90 text-white"
-                    >
-                      Editar
-                    </Button>
-                  </>
+            {/* Search Student (Only if Admin/Teacher) */}
+            {!isStudent && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Estudiante</label>
+                {selectedStudent ? (
+                  <div className="flex justify-between items-center p-2 border rounded bg-muted/20">
+                    <span>{selectedStudent.nombreCompleto}</span>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)}>Cambiar</Button>
+                  </div>
                 ) : (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditingProyecto(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSaveChanges} className="bg-green-600 hover:bg-green-700 text-white">
-                      Guardar
-                    </Button>
-                  </>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar estudiante..."
+                      className="pl-8"
+                      value={studentSearchTerm}
+                      onChange={e => handleSearchStudent(e.target.value)}
+                    />
+                    {studentSearchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg mt-1 max-h-40 overflow-auto">
+                        {studentSearchResults.map(s => (
+                          <div key={s.id}
+                            className="p-2 hover:bg-muted cursor-pointer"
+                            onClick={() => { setSelectedStudent(s); setStudentSearchResults([]); setStudentSearchTerm(""); }}
+                          >
+                            {s.nombreCompleto}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
+            )}
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Título del Proyecto</label>
+              <Input
+                value={formData.titulo}
+                onChange={e => setFormData({ ...formData, titulo: e.target.value })}
+                placeholder="Ingrese el título..."
+              />
             </div>
-          )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Línea de Investigación</label>
+                <Select
+                  value={String(formData.idLineaInv || "")}
+                  onValueChange={v => setFormData({ ...formData, idLineaInv: Number(v) })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+                  <SelectContent>
+                    {researchLines.map(line => (
+                      <SelectItem key={line.id} value={String(line.id)}>{line.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Gestión</label>
+                <Select
+                  value={String(formData.idGestion || "")}
+                  onValueChange={v => setFormData({ ...formData, idGestion: Number(v) })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+                  <SelectContent>
+                    {gestiones.map(g => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.gestion}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Note: In a real app we need DocTG and Tutor selection here too. Omitted for brevity/lack of easy data source in this step */}
+            <div className="p-2 bg-yellow-50 text-yellow-800 text-xs rounded border border-yellow-200">
+              Nota: Los docentes (Tutor, Docente TG) deben ser asignados posteriormente o añadidos a este formulario.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancelar</Button>
+            <Button onClick={handleCreateRequest} disabled={createLoading}>
+              {createLoading ? <Loader2 className="animate-spin mr-2" /> : null}
+              Crear Proyecto
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

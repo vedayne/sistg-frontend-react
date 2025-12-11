@@ -5,25 +5,17 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
 import { Camera, Lock, LogOut, Smartphone, Copy } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 export default function ProfilePage() {
-  const {
-    user,
-    loading,
-    updatePassword,
-    fetchSessions,
-    logoutAllDevices,
-    logoutDevice,
-    uploadProfileImage,
-    sessions,
-  } = useAuth()
+  const { user, loading, updatePassword, fetchSessions, logoutAllDevices, logoutDevice, uploadProfileImage, sessions } =
+    useAuth()
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -32,6 +24,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"perfil" | "sesiones">("perfil")
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [uploadMessage, setUploadMessage] = useState("")
+  const [isFetchingSessions, setIsFetchingSessions] = useState(false)
   const [passwordData, setPasswordData] = useState({
     current: "",
     new: "",
@@ -39,6 +32,11 @@ export default function ProfilePage() {
   })
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const [copiedSessionId, setCopiedSessionId] = useState<string | null>(null)
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  })
 
   useEffect(() => {
     if (user?.fotoPerfil?.remotepath) {
@@ -48,9 +46,18 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (activeTab === "sesiones") {
-      fetchSessions()
+      fetchSessionsWithLoading()
     }
-  }, [activeTab, fetchSessions])
+  }, [activeTab])
+
+  const fetchSessionsWithLoading = async () => {
+    setIsFetchingSessions(true)
+    try {
+      await fetchSessions()
+    } finally {
+      setIsFetchingSessions(false)
+    }
+  }
 
   const handleLogoutAllDevices = async () => {
     if (confirm("¿Estás seguro de que quieres cerrar todas las sesiones en otros dispositivos?")) {
@@ -180,7 +187,7 @@ export default function ProfilePage() {
     const exactMatch = currentUA ? sessions.find((s) => s.userAgent === currentUA) : null
     return exactMatch || sessions[0]
   })()
-  const otherSessions = currentSession ? sessions.filter((s) => s.id !== currentSession.id) : []
+  const otherSessions = currentSession ? sessions.filter((s) => s.id !== currentSession.id).slice(0, 5) : []
 
   const calculateTimeRemaining = (expiresAt: string) => {
     const now = new Date().getTime()
@@ -193,7 +200,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-6 max-w-6xl mx-auto space-y-6">
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as "perfil" | "sesiones")}
@@ -284,7 +291,6 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-1">Grado</label>
-                    {/* <p className="font-medium text-foreground">{user.persona?.grado || "N/A"}</p> */}
                     {user.persona?.fuerza === "Militar" ? "Militar" : "Civil"}
                   </div>
                 </div>
@@ -319,9 +325,7 @@ export default function ProfilePage() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">
-                    Código SAGA
-                  </label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Código SAGA</label>
                   <p className="font-medium text-foreground">{user.academico?.codAlumno || "N/A"}</p>
                 </div>
                 <div>
@@ -334,30 +338,44 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="sesiones" className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center justify-between gap-3">
             <div>
               <h1 className="text-3xl font-bold text-primary mb-1">Sesiones Activas</h1>
               <p className="text-muted-foreground">Gestiona tus sesiones en diferentes dispositivos</p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={fetchSessions} className="bg-secondary/10 border-secondary/30">
-                Actualizar
+            <div className="flex gap-2 w-full md:w-auto">
+              <Button
+                variant="outline"
+                onClick={fetchSessionsWithLoading}
+                disabled={isFetchingSessions}
+                className="bg-secondary/10 border-secondary/30 flex-1 md:flex-none"
+              >
+                {isFetchingSessions ? "Actualizando..." : "Actualizar"}
               </Button>
               {otherSessions.length > 0 && (
                 <Button
                   onClick={handleLogoutAllDevices}
-                  disabled={isLoggingOut}
+                  disabled={isLoggingOut || isFetchingSessions}
                   variant="destructive"
-                  className="flex gap-2 items-center"
+                  className="flex gap-2 items-center flex-1 md:flex-none"
                 >
                   <LogOut className="w-4 h-4" />
-                  {isLoggingOut ? "Cerrando..." : "Cerrar otras sesiones"}
+                  {isLoggingOut ? "Cerrando..." : "Cerrar otras"}
                 </Button>
               )}
             </div>
           </div>
 
-          {sessions.length === 0 ? (
+          {isFetchingSessions ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center space-y-3">
+                <div className="inline-block">
+                  <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                </div>
+                <p className="text-muted-foreground">Cargando sesiones...</p>
+              </div>
+            </div>
+          ) : sessions.length === 0 ? (
             <Alert>
               <AlertDescription>No hay sesiones activas registradas</AlertDescription>
             </Alert>
@@ -376,10 +394,10 @@ export default function ProfilePage() {
                     <>
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-semibold text-foreground">{parseUserAgent(currentSession.userAgent).browser}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {parseUserAgent(currentSession.userAgent).os}
+                          <p className="font-semibold text-foreground">
+                            {parseUserAgent(currentSession.userAgent).browser}
                           </p>
+                          <p className="text-sm text-muted-foreground">{parseUserAgent(currentSession.userAgent).os}</p>
                         </div>
                         <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-100 px-2 py-1 rounded-full">
                           Activa
@@ -408,32 +426,32 @@ export default function ProfilePage() {
                         <p className="text-xs text-green-600 dark:text-green-400">Copiado al portapapeles</p>
                       )}
                     </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No se pudo identificar la sesión activa.</p>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
 
-              <Card className="border-secondary/30 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <LogOut className="w-4 h-4" />
-                    Otras sesiones ({otherSessions.length})
-                  </CardTitle>
-                  <CardDescription>Controla el acceso desde otros dispositivos</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {otherSessions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Solo tienes esta sesión activa.</p>
-                  ) : (
-                    otherSessions.map((session) => {
+              {otherSessions.length > 0 && (
+                <Card className="border-orange-200/50 dark:border-orange-900/30 shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                      <LogOut className="w-4 h-4" />
+                      Otras sesiones ({otherSessions.length}
+                      {sessions.length - otherSessions.length - 1 > 0 ? ` de ${sessions.length - 1}` : ""})
+                    </CardTitle>
+                    <CardDescription>Controla el acceso desde otros dispositivos (mostrando hasta 5)</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+                    {otherSessions.map((session) => {
                       const { browser, os } = parseUserAgent(session.userAgent)
                       const timeRemaining = calculateTimeRemaining(session.expiresAt)
                       return (
-                        <div key={session.id} className="border rounded-lg p-4 space-y-2 bg-secondary/10">
+                        <div
+                          key={session.id}
+                          className="border rounded-lg p-4 space-y-2 bg-secondary/10 hover:bg-secondary/20 transition-colors"
+                        >
                           <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <p className="font-semibold text-foreground">{browser}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground truncate">{browser}</p>
                               <p className="text-sm text-muted-foreground">{os}</p>
                               <p className="text-xs text-muted-foreground mt-1">IP: {session.ip}</p>
                               <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-medium">
@@ -448,7 +466,7 @@ export default function ProfilePage() {
                                 })}
                               </p>
                             </div>
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 flex-shrink-0">
                               <Button
                                 size="sm"
                                 onClick={() => {
@@ -479,81 +497,184 @@ export default function ProfilePage() {
                           )}
                         </div>
                       )
-                    })
-                  )}
-                </CardContent>
-              </Card>
+                    })}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </TabsContent>
       </Tabs>
 
-      {/* Modal de cambio de contraseña */}
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-primary">Cambiar Contraseña</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {passwordError && (
-              <Alert variant="destructive">
-                <AlertDescription>{passwordError}</AlertDescription>
-              </Alert>
-            )}
+      {showPasswordDialog && (
+        <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-primary">Cambiar Contraseña</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {passwordError && (
+                <Alert className="bg-red-50 text-red-800 border-red-200">
+                  <AlertDescription>{passwordError}</AlertDescription>
+                </Alert>
+              )}
+              {passwordSuccess && (
+                <Alert className="bg-green-50 text-green-800 border-green-200">
+                  <AlertDescription>{passwordSuccess}</AlertDescription>
+                </Alert>
+              )}
 
-            {passwordSuccess && (
-              <Alert className="bg-green-50 border-green-200">
-                <AlertDescription className="text-green-800">{passwordSuccess}</AlertDescription>
-              </Alert>
-            )}
+              {/* Contraseña Actual */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Contraseña Actual</label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.current ? "text" : "password"}
+                    placeholder="Ingresa tu contraseña actual"
+                    value={passwordData.current}
+                    onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })}
+                    disabled={isSubmittingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPasswords.current ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Contraseña Actual</label>
-              <Input
-                type="password"
-                value={passwordData.current}
-                onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })}
-                disabled={isSubmittingPassword}
-              />
+              {/* Nueva Contraseña */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Nueva Contraseña</label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.new ? "text" : "password"}
+                    placeholder="Ingresa tu nueva contraseña"
+                    value={passwordData.new}
+                    onChange={(e) => setPasswordData({ ...passwordData, new: e.target.value })}
+                    disabled={isSubmittingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPasswords.new ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirmar Contraseña */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Confirmar Nueva Contraseña</label>
+                <div className="relative">
+                  <Input
+                    type={showPasswords.confirm ? "text" : "password"}
+                    placeholder="Confirma tu nueva contraseña"
+                    value={passwordData.confirm}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })}
+                    disabled={isSubmittingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPasswords.confirm ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={isSubmittingPassword}
+                  className="flex-1 bg-primary hover:bg-primary/90"
+                >
+                  {isSubmittingPassword ? "Guardando..." : "Guardar"}
+                </Button>
+                <Button onClick={() => setShowPasswordDialog(false)} variant="outline" className="flex-1">
+                  Cancelar
+                </Button>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Nueva Contraseña</label>
-              <Input
-                type="password"
-                value={passwordData.new}
-                onChange={(e) => setPasswordData({ ...passwordData, new: e.target.value })}
-                disabled={isSubmittingPassword}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Confirmar Contraseña</label>
-              <Input
-                type="password"
-                value={passwordData.confirm}
-                onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })}
-                disabled={isSubmittingPassword}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleChangePassword}
-                disabled={isSubmittingPassword}
-                className="flex-1 bg-primary hover:bg-primary/90 text-white"
-              >
-                {isSubmittingPassword ? "Guardando..." : "Guardar"}
-              </Button>
-              <Button
-                onClick={() => setShowPasswordDialog(false)}
-                variant="outline"
-                className="flex-1"
-                disabled={isSubmittingPassword}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

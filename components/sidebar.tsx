@@ -1,22 +1,10 @@
 "use client"
 
 import { useAuth } from "@/contexts/auth-context"
-import { BookOpen, FileText, Settings, BarChart3, Users, HelpCircle, Zap, FolderOpen } from "lucide-react"
-
-const MENU_ITEMS_ALL = [
-  { id: "perfil", label: "Perfil", icon: Users, description: "Mi Perfil" },
-  { id: "entregas", label: "Entregas", icon: FileText, description: "Gestión de entregas" },
-  { id: "defensas", label: "Defensas", icon: BookOpen, description: "Defensas de TG" },
-  { id: "proyectos", label: "Proyecto", icon: FolderOpen, description: "Proyectos de TG" },
-  { id: "nombramiento-tutor", label: "Nombramiento Tutor", icon: Users, description: "Selecciona tutor" },
-  { id: "registro-temario", label: "Registro Temario", icon: FileText, description: "Temario tentativo" },
-  { id: "reporte", label: "Generar Reporte", icon: BarChart3, description: "Reportes" },
-  { id: "configuraciones", label: "Configuraciones", icon: Settings, description: "Sistema" },
-  { id: "documentacion", label: "Documentación", icon: FileText, description: "Documentos" },
-  { id: "listado-usuario", label: "Listado Usuario", icon: Users, description: "Usuarios" },
-  { id: "manual", label: "Manual de Usuario", icon: HelpCircle, description: "Manual" },
-  { id: "flujograma", label: "Flujograma", icon: Zap, description: "Proceso" },
-]
+import { getAuthorizedMenuItems } from "@/lib/permissions"
+import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ChevronUp, Shield } from "lucide-react"
 
 interface SidebarProps {
   currentPage: string
@@ -26,29 +14,10 @@ interface SidebarProps {
 export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
   const { user } = useAuth()
 
-  const getMenuItems = () => {
-    if (!user) return MENU_ITEMS_ALL
-
-    const isStudent = user.roles?.some((r) => r.name === "ESTUDIANTE")
-    const isTeacher = user.roles?.some((r) =>
-      ["DOCENTE_TG", "TUTOR", "REVISOR", "JEFE_CARRERA", "DOCENTE"].includes(r.name),
-    )
-    const isAdmin = user.roles?.some((r) => r.name === "ADMINISTRADOR")
-
-    if (isStudent) {
-      return MENU_ITEMS_ALL.filter((item) => !["configuraciones", "listado-usuario", "reporte"].includes(item.id))
-    }
-    if (isTeacher) {
-      return MENU_ITEMS_ALL
-    }
-    if (isAdmin) {
-      return MENU_ITEMS_ALL
-    }
-
-    return MENU_ITEMS_ALL
-  }
-
-  const menuItems = getMenuItems()
+  // Extract role names from user object
+  const userRoles = user?.roles?.map((r) => r.name) || []
+  const menuItems = getAuthorizedMenuItems(userRoles)
+  const rolesList = user?.roles || []
 
   return (
     <aside className="w-64 bg-primary text-primary-foreground flex flex-col overflow-hidden border-r dark:border-slate-800">
@@ -73,11 +42,10 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
             <button
               key={item.id}
               onClick={() => onPageChange(item.id)}
-              className={`w-full text-left px-4 py-3 rounded-lg transition-all font-medium flex items-center gap-3 ${
-                currentPage === item.id
-                  ? "bg-secondary text-secondary-foreground shadow-md"
-                  : "hover:bg-primary/80 text-primary-foreground/90 hover:text-primary-foreground"
-              }`}
+              className={`w-full text-left px-4 py-3 rounded-lg transition-all font-medium flex items-center gap-3 ${currentPage === item.id
+                ? "bg-secondary text-secondary-foreground shadow-md"
+                : "hover:bg-primary/80 text-primary-foreground/90 hover:text-primary-foreground"
+                }`}
             >
               <Icon className="w-5 h-5" />
               <div className="flex-1">
@@ -88,10 +56,36 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
         })}
       </nav>
 
-      {/* User Info */}
+      {/* User Info with Popover */}
       <div className="p-4 border-t border-primary/20 bg-primary/50">
-        <p className="text-xs font-medium opacity-75">Rol:</p>
-        <p className="text-sm truncate">{user?.roles?.[0]?.name || "Estudiante"}</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="w-full flex items-center gap-3 hover:bg-primary/40 p-2 rounded-md transition-colors text-left group">
+              <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center text-secondary-foreground">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">{user?.persona?.nombreCompleto || user?.email}</p>
+                <div className="flex items-center gap-1 text-xs opacity-75">
+                  <span className="truncate">{rolesList[0]?.description || "Sin Rol"}</span>
+                  {rolesList.length > 1 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">+{rolesList.length - 1}</Badge>}
+                </div>
+              </div>
+              <ChevronUp className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3 mb-2" side="top" align="center">
+            <h4 className="font-semibold text-sm mb-2 text-foreground">Mis Roles Asignados</h4>
+            <div className="space-y-2">
+              {rolesList.map((role, idx) => (
+                <div key={idx} className="bg-muted/50 p-2 rounded text-xs border border-muted-foreground/10">
+                  <div className="font-medium text-primary mb-0.5">{role.name}</div>
+                  <div className="text-muted-foreground">{role.description}</div>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </aside>
   )

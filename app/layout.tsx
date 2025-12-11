@@ -35,6 +35,11 @@ export const metadata: Metadata = {
     ],
     apple: "/emi-apple-icon.png",
   },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 }
 
 export default function RootLayout({
@@ -44,8 +49,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content="#004f9f" />
+      </head>
       <body className={`${montserrat.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="sistg-theme">
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
         <Analytics />

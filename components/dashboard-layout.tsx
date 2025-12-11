@@ -19,6 +19,7 @@ import GenerarReportePage from "@/components/pages/generar-reporte-page"
 import ListadoUsuarioPage from "@/components/pages/listado-usuario-page"
 import NombramientoTutorPage from "@/components/pages/nombramiento-tutor-page"
 import RegistroTemarioPage from "@/components/pages/registro-temario-page"
+import EstudiantesPage from "@/components/pages/estudiantes-page"
 import { Moon, Sun, LogOut, Home } from "lucide-react"
 
 export default function DashboardLayout() {
@@ -52,6 +53,8 @@ export default function DashboardLayout() {
         return <DefensasPage />
       case "proyectos":
         return <ProyectosPage />
+      case "estudiantes":
+        return <EstudiantesPage />
       case "nombramiento-tutor":
         return <NombramientoTutorPage />
       case "registro-temario":
@@ -86,12 +89,7 @@ export default function DashboardLayout() {
               <p className="text-sm text-muted-foreground">{user?.persona?.nombreCompleto}</p>
             </div>
             <div className="flex items-center gap-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => router.push("/")}
-                className="hover:bg-secondary/20"
-              >
+              <Button size="sm" variant="ghost" onClick={() => router.push("/")} className="hover:bg-secondary/20">
                 <Home className="w-4 h-4" />
               </Button>
               <Button size="sm" variant="ghost" onClick={toggleDarkMode} className="hover:bg-secondary/20">

@@ -8,11 +8,135 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Mail } from "lucide-react"
 
 interface LoginFormProps {
   onBackToHome?: () => void
   onLoginSuccess?: () => void
+}
+
+function ForgotPasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [email, setEmail] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccess(false)
+
+    try {
+      // API call to request password reset
+      // This would be: POST /auth/forgot-password with { email }
+      // The backend would send an email to the institutional email address
+      console.log("Requesting password reset for:", email)
+      setSuccess(true)
+      setTimeout(() => {
+        setEmail("")
+        onClose()
+      }, 2500)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error requesting password reset")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-primary">Recuperar Contraseña</DialogTitle>
+          <DialogDescription>Ingresa tu correo institucional para recibir un enlace de recuperación</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {success && (
+            <Alert className="bg-green-50 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-800">
+              <Mail className="h-4 w-4" />
+              <AlertDescription>
+                Se ha enviado un enlace de recuperación a tu correo institucional. Por favor revisa tu bandeja de
+                entrada y sigue las instrucciones.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {!success && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Correo Institucional</label>
+                <Input
+                  type="email"
+                  placeholder="usuario@emi.edu.bo"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={onClose}
+                  variant="outline"
+                  className="flex-1 bg-transparent"
+                  disabled={isLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90" disabled={isLoading}>
+                  {isLoading ? "Enviando..." : "Enviar Enlace"}
+                </Button>
+              </div>
+            </>
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ResumeSessionModal({
+  isOpen,
+  onResume,
+  onNewSession,
+}: {
+  isOpen: boolean
+  onResume: () => void
+  onNewSession: () => void
+}) {
+  return (
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-primary">Sesión Activa Detectada</DialogTitle>
+          <DialogDescription>Ya tienes una sesión activa en este sistema.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-sm text-foreground">¿Qué deseas hacer?</p>
+
+          <div className="flex gap-2">
+            <Button onClick={onResume} className="flex-1 bg-primary hover:bg-primary/90">
+              Volver al Panel
+            </Button>
+            <Button onClick={onNewSession} variant="outline" className="flex-1 bg-transparent">
+              Iniciar Nueva Sesión
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormProps) {
@@ -22,8 +146,16 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
   const [error, setError] = useState("")
   const [errorType, setErrorType] = useState<"email" | "password" | "">("")
   const [showErrorModal, setShowErrorModal] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuth()
+  const [showResumeSession, setShowResumeSession] = useState(false)
+  const { login, hasValidSession } = useAuth()
+
+  useEffect(() => {
+    if (hasValidSession) {
+      setShowResumeSession(true)
+    }
+  }, [hasValidSession])
 
   useEffect(() => {
     if (showErrorModal) {
@@ -33,6 +165,16 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
       return () => clearTimeout(timer)
     }
   }, [showErrorModal])
+
+  const handleResume = () => {
+    setShowResumeSession(false)
+    onLoginSuccess?.()
+  }
+
+  const handleNewSession = () => {
+    setShowResumeSession(false)
+    // Clear session and let user login again
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,11 +210,7 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
   return (
     <div className="relative min-h-screen overflow-hidden">
       <div className="absolute inset-0 -z-10">
-        <img
-          src="/sistg-03.jpg"
-          alt="Fondo SISTG"
-          className="w-full h-full object-cover opacity-55"
-        />
+        <img src="/sistg-03.jpg" alt="Fondo SISTG" className="w-full h-full object-cover opacity-55" />
         <div className="absolute inset-0 bg-linear-to-br from-background/65 via-background/70 to-background/75 dark:from-background/60 dark:via-background/65 dark:to-background/70" />
       </div>
 
@@ -145,6 +283,15 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
                 </Button>
               </form>
 
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary hover:text-primary/80 underline font-medium"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+
               <div className="mt-4 p-3 bg-secondary/20 rounded-lg text-sm">
                 <p className="font-medium text-foreground mb-2">Para probar el sistema:</p>
                 <p className="text-muted-foreground text-xs mb-1">Email: mlipay@est.emi.edu.bo</p>
@@ -173,6 +320,9 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
           </div>
         </DialogContent>
       </Dialog>
+
+      <ForgotPasswordModal isOpen={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
+      <ResumeSessionModal isOpen={showResumeSession} onResume={handleResume} onNewSession={handleNewSession} />
     </div>
   )
 }

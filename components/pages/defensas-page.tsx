@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus } from "lucide-react"
+import { Plus, X } from "lucide-react"
 
 const DEFENSAS_DATA = [
   {
@@ -51,6 +51,8 @@ export default function DefensasPage() {
     observacion: "",
   })
 
+  const hasActiveFilters = searchStudent.trim() !== "" || filterPhase !== ""
+
   const filteredDefensas = useMemo(() => {
     return DEFENSAS_DATA.filter((defensa) => {
       const matchStudent = defensa.estudiante.toLowerCase().includes(searchStudent.toLowerCase())
@@ -58,6 +60,11 @@ export default function DefensasPage() {
       return matchStudent && matchPhase
     })
   }, [searchStudent, filterPhase])
+
+  const handleClearFilters = () => {
+    setSearchStudent("")
+    setFilterPhase("")
+  }
 
   const handleSaveNewDefensa = () => {
     if (!newDefensa.fase || !newDefensa.estudiante) {
@@ -106,20 +113,33 @@ export default function DefensasPage() {
                 onChange={(e) => setSearchStudent(e.target.value)}
               />
             </div>
-            <div>
+            <div className="flex flex-col">
               <label className="block text-sm font-medium mb-1">Fase</label>
-              <select
-                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                value={filterPhase}
-                onChange={(e) => setFilterPhase(e.target.value)}
-              >
-                <option value="">Todas las fases</option>
-                {FASES.map((fase) => (
-                  <option key={fase} value={fase}>
-                    {fase}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                  value={filterPhase}
+                  onChange={(e) => setFilterPhase(e.target.value)}
+                >
+                  <option value="">Todas las fases</option>
+                  {FASES.map((fase) => (
+                    <option key={fase} value={fase}>
+                      {fase}
+                    </option>
+                  ))}
+                </select>
+                {/* Clear filters button */}
+                {hasActiveFilters && (
+                  <Button
+                    onClick={handleClearFilters}
+                    variant="outline"
+                    className="text-xs bg-transparent"
+                    title="Limpiar búsqueda"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -255,7 +275,10 @@ export default function DefensasPage() {
               <select
                 className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
                 value={newDefensa.estudiante}
-                onChange={(e) => setNewDefensa({ ...newDefensa, estudiante: e.target.value })}
+                onChange={(e) => {
+                  const selected = ESTUDIANTES.find((est) => est.nombre === e.target.value)
+                  setNewDefensa({ ...newDefensa, estudiante: e.target.value })
+                }}
               >
                 <option value="">Selecciona un estudiante</option>
                 {ESTUDIANTES.map((est) => (
@@ -266,14 +289,12 @@ export default function DefensasPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Proyecto</label>
-              <Input
-                placeholder="Nombre del proyecto"
-                value={newDefensa.proyecto}
-                onChange={(e) => setNewDefensa({ ...newDefensa, proyecto: e.target.value })}
-              />
-            </div>
+            {newDefensa.estudiante && (
+              <div className="p-3 bg-secondary/20 rounded-lg border border-secondary">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Título del Proyecto</p>
+                <p className="font-medium text-foreground">Sistema de Gestión de Trabajos de Grado EMI</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-2">Nota Referencial</label>

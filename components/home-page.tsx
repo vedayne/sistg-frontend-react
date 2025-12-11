@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Phone, MapPin, Globe, LogIn, ChevronLeft, ChevronRight } from "lucide-react"
+import { Mail, Phone, MapPin, Globe, LogIn, ChevronLeft, ChevronRight, ArrowUp } from "lucide-react"
 import InteractiveMapSection from "./interactive-map-section"
 
 const unidadesAcademicas = [
@@ -61,12 +61,33 @@ const unidadesAcademicas = [
 export default function HomePage() {
   const router = useRouter()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [showScrollButton, setShowScrollButton] = useState(false)
 
   const carouselImages = [
-    { id: 1, title: "EMI - Excelencia Académica", query: "university engineering campus modern education", name: "sistg-01.jpg" },
-    { id: 2, title: "Trabajos de Grado", query: "graduation thesis research project academic work", name: "sistg-02.jpg" },
-    { id: 3, title: "Innovación Tecnológica", query: "technology innovation engineering research lab", name: "sistg-03.jpg" },
-    { id: 4, title: "Formación de Ingenieros", query: "engineering education students learning technology", name: "sistg-04.jpg" },
+    {
+      id: 1,
+      title: "EMI - Excelencia Académica",
+      query: "university engineering campus modern education",
+      name: "sistg-01.jpg",
+    },
+    {
+      id: 2,
+      title: "Trabajos de Grado",
+      query: "graduation thesis research project academic work",
+      name: "sistg-02.jpg",
+    },
+    {
+      id: 3,
+      title: "Innovación Tecnológica",
+      query: "technology innovation engineering research lab",
+      name: "sistg-03.jpg",
+    },
+    {
+      id: 4,
+      title: "Formación de Ingenieros",
+      query: "engineering education students learning technology",
+      name: "sistg-04.jpg",
+    },
     { id: 5, title: "Sistema SISTG", query: "management system organization digital platform", name: "sistg-05.jpg" },
   ]
 
@@ -77,6 +98,19 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300)
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -84,18 +118,17 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
-              <img
-                src={"/emi_logo_png.webp"}
-                alt="Logo EMI"
-                className="w-8 h-8"
-              />
+              <img src={"/emi_logo_png.webp"} alt="Logo EMI" className="w-8 h-8" />
             </div>
             <div>
               <h1 className="font-bold text-lg text-primary">SISTG</h1>
               <p className="text-xs text-muted-foreground">Sistema de Gestión de TG</p>
             </div>
           </div>
-          <Button onClick={() => router.push("/login")} className="bg-primary hover:bg-primary/90 text-white flex gap-2">
+          <Button
+            onClick={() => router.push("/login")}
+            className="bg-primary hover:bg-primary/90 text-white flex gap-2"
+          >
             <LogIn className="w-4 h-4" />
             Iniciar Sesión
           </Button>
@@ -141,8 +174,9 @@ export default function HomePage() {
             <button
               key={idx}
               onClick={() => setCurrentImageIndex(idx)}
-              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? "bg-white w-8" : "bg-white/50"
-                }`}
+              className={`w-2 h-2 rounded-full transition-all ${
+                idx === currentImageIndex ? "bg-white w-8" : "bg-white/50"
+              }`}
             />
           ))}
         </div>
@@ -177,7 +211,7 @@ export default function HomePage() {
                 <CardDescription>Acceso a trabajos de grado completados</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <a href="https://rgra.emi.edu.bo/#/Login" target="_blank" rel="noopener noreferrer">
+                <a href="https://repositoriogrado.net.emi.edu.bo/#/" target="_blank" rel="noopener noreferrer">
                   <Button
                     variant="outline"
                     className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
@@ -194,7 +228,7 @@ export default function HomePage() {
                 <CardDescription>Acceso a trabajos de posgrado completados</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <a href="https://rpos.emi.edu.bo/#/Login" target="_blank" rel="noopener noreferrer">
+                <a href="https://repositorioposgrado.dev.emi.edu.bo/#/" target="_blank" rel="noopener noreferrer">
                   <Button
                     variant="outline"
                     className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
@@ -254,6 +288,16 @@ export default function HomePage() {
           <p className="text-sm opacity-90">Plataforma desarrollada para la Escuela Militar de Ingeniería</p>
         </div>
       </footer>
+
+      {showScrollButton && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg transition-all duration-300 z-40"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="w-6 h-6" />
+        </button>
+      )}
     </div>
   )
 }

@@ -13,7 +13,6 @@ interface Session {
   expiresAt: string
   revokedAt: string | null
 }
-// </CHANGE>
 
 interface AuthContextType {
   user: User | null
@@ -30,6 +29,7 @@ interface AuthContextType {
   uploadProfileImage: (
     file: File,
   ) => Promise<{ message: string; archivo: { id: number; remotepath: string; mimetype: string } }>
+  hasValidSession: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
-  // </CHANGE>
+  const [hasValidSession, setHasValidSession] = useState(false)
 
   useEffect(() => {
     const initAuth = async () => {
@@ -52,11 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if ((refreshed as any).access_token) {
               token = (refreshed as any).access_token
               apiClient.setAccessToken(token)
+              setHasValidSession(true)
               console.log("[v0] Token refrescado desde cookie de sesión")
             }
           } catch (refreshError) {
             console.warn("[v0] No se pudo refrescar la sesión automáticamente", refreshError)
+            setHasValidSession(false)
           }
+        } else {
+          setHasValidSession(true)
         }
 
         if (token) {
@@ -69,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error("[v0] Error loading profile:", err)
         apiClient.clearAccessToken()
+        setHasValidSession(false)
       } finally {
         setLoading(false)
       }
@@ -105,10 +110,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(userData)
+      setHasValidSession(true)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed"
       console.error("[v0] Login error:", message)
       setError(message)
+      setHasValidSession(false)
       throw err
     }
   }
@@ -123,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiClient.clearAccessToken()
       setUser(null)
       setSessions([])
+      setHasValidSession(false)
     }
   }
 
@@ -213,7 +221,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [user],
   )
-  // </CHANGE>
 
   return (
     <AuthContext.Provider
@@ -222,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         sessions,
+        hasValidSession,
         login,
         logout,
         updatePassword,

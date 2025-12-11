@@ -1,15 +1,21 @@
 export interface Role {
   id: number
   name:
-    | "ADMINISTRADOR"
-    | "DOCENTE_TG"
-    | "TUTOR"
-    | "REVISOR"
-    | "ESTUDIANTE"
-    | "JEFE_CARRERA"
-    | "SECRETARIA"
-    | "DDE"
-    | "UTIC"
+  | "ADMIN"
+  | "UTIC"
+  | "DOCENTETG"
+  | "ESTUDIANTE"
+  | "TUTOR"
+  | "REVISOR"
+  | "REVISOR1"
+  | "REVISOR2"
+  | "JEFECARRERA"
+  | "DDE"
+  | "SECRETARIA"
+  | "INVITADO"
+  // Legacy/Fallback just in case, but user seems strict
+  | "ADMINISTRADOR"
+  | "DOCENTE_TG"
   description: string
 }
 
@@ -104,6 +110,7 @@ export interface UserBasicInfo {
   cod?: string
   especialidad?: string
   idSaga?: number
+  emailPersonal?: string
 }
 
 export interface Entrega {
@@ -135,4 +142,203 @@ export interface UnidadAcademica {
   telefono: string
   email: string
   web: string
+}
+
+export interface RoleInfo {
+  id: number
+  name: string
+  description: string
+  isActive: boolean
+  usersCount?: number
+}
+
+export interface Phase {
+  id: number
+  name: string
+  projectsCount: number
+  defensesCount: number
+}
+
+export interface Gestion {
+  id: number
+  gestion: string
+  typeGestion: "I" | "II"
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  projectsCount?: number
+}
+
+export interface SpecialityInfo {
+  idEspecialidad: number
+  especialidad: string
+  idNivelAcad: number
+  nivelAcad: string
+}
+
+export interface ResearchLine {
+  id: number
+  name: string
+  idAreaInvestigacion: number
+  areaInvestigacion?: {
+    id: number
+    name: string
+  }
+}
+
+export interface Semester {
+  id: number
+  code: string
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectResponseDto {
+  id: number
+  titulo: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  estudiante: EstudianteBasicInfo
+  docenteTG?: DocenteBasicInfo
+  docenteTutor?: DocenteBasicInfo
+  docenteRev1?: DocenteBasicInfo
+  docenteRev2?: DocenteBasicInfo
+  gestion?: { id: number; gestion: string }
+  lineaInvestigacion?: { id: number; name: string }
+  modalidad?: { id: number; name: string; description?: string }
+}
+
+export interface CreateProjectDto {
+  idEstudiante: number
+  titulo: string
+  idDocTG: number
+  idDocTutor: number
+  idDocRev1: number
+  idDocRev2?: number
+  idGestion: number
+  idLineaInv: number
+  idModalidad: number
+}
+
+export interface AdmEntrega {
+  id: number
+  title: string
+  descripcion: string | null
+  idDocente: number
+  idGestion: number
+  idEspecialidad: number
+  especialidad?: string
+  idSemestre: number
+  startAt: string
+  endAt: string
+  isActive: boolean
+  createdAt: string
+  estudiantes?: EstudianteBasicInfo[]
+  _count?: {
+    entregas: number
+  }
+}
+
+export interface SubmissionFile {
+  id: number
+  originalName: string
+  remotepath: string
+  mimetype: string
+  size: number
+  createdAt: string
+}
+
+export interface EntregaDetalle {
+  id: number
+  idAdmEntrega: number
+  idEstudiante: number
+  idProyecto: number
+  title: string
+  descripcion: string | null
+  entregaEstAt: string
+  archWordId: number
+  archWord?: SubmissionFile
+  archPdfId: number
+  archPdf?: SubmissionFile
+
+  // DocTG
+  estadoDocTG: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  descargaDocTGAt: string | null
+  revDocTGAt: string | null
+  archRevDocTGId: number | null
+  archRevDocTG?: SubmissionFile
+
+  // DocTutor
+  estadoDocTutor: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  descargaDocTutorAt: string | null
+  revDocTutorAt: string | null
+  archRevDocTutorId: number | null
+  archRevDocTutor?: SubmissionFile
+
+  // DocRev1
+  estadoDocRev1: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  descargaDocRev1At: string | null
+  revDocRev1At: string | null
+  archRevDocRev1Id: number | null
+  archRevDocRev1?: SubmissionFile
+
+  // DocRev2
+  estadoDocRev2: "PENDIENTE" | "EN_REVISION" | "REVISADO"
+  descargaDocRev2At: string | null
+  revDocRev2At: string | null
+  archRevDocRev2Id: number | null
+  archRevDocRev2?: SubmissionFile
+
+  estudiante?: EstudianteBasicInfo
+  proyecto?: ProjectResponseDto
+}
+
+export interface DocumentInfo {
+  id: number
+  originalName: string
+  remotepath: string
+  mimetype: string
+  size: number
+  createdAt: string
+  tipoDocumento: string
+  tipoDocumentoId: number
+  origen: "CARGADO" | "GENERADO"
+}
+
+export interface DocumentTypeGroup {
+  tipoDocumentoId: number
+  tipoDocumento: string
+  descripcion: string
+  cantidad: number
+  archivos: DocumentInfo[]
+}
+
+export interface ResearchArea {
+  id: number
+  name: string
+}
+
+export interface MemberType {
+  id: number
+  name: string
+  description: string
+  editable?: boolean // Optional, based on original mock data
+}
+
+export interface DocumentType {
+  id: number
+  name: string
+  description?: string
+  slug?: string
+}
+
+export interface StudentDocumentsResponse {
+  idEstudiante: string
+  nombreCompleto: string
+  idProyecto: number
+  tituloProyecto: string
+  totalDocumentos: number
+  documentosPorTipo: DocumentTypeGroup[]
 }
