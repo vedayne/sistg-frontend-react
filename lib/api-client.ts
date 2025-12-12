@@ -339,6 +339,10 @@ export const apiClient = {
         method: "POST",
         body: JSON.stringify({ roleId }),
       }),
+    removeRole: async (id: string, roleId: number) =>
+      apiClient.request<{ message: string }>(`/users/${id}/roles/${roleId}`, {
+        method: "DELETE",
+      }),
   },
 
   projects: {

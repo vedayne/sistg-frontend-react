@@ -20,6 +20,7 @@ export default function AsignacionRolesPage() {
   const [selectedUser, setSelectedUser] = useState<UserBasicInfo | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>("")
   const [assigning, setAssigning] = useState(false)
+  const [removingRole, setRemovingRole] = useState<string | null>(null)
 
   useEffect(() => {
     const loadRoles = async () => {
@@ -75,6 +76,29 @@ export default function AsignacionRolesPage() {
       toast({ variant: "destructive", title: "Error al asignar", description: msg })
     } finally {
       setAssigning(false)
+    }
+  }
+
+  const handleRemoveRole = async (roleName: string) => {
+    if (!selectedUser) return
+    const roleObj = roles.find((r) => r.name === roleName)
+    if (!roleObj) {
+      toast({ variant: "destructive", title: "Rol no encontrado" })
+      return
+    }
+    try {
+      setRemovingRole(roleName)
+      await apiClient.users.removeRole(selectedUser.id, roleObj.id)
+      toast({ title: "Rol removido" })
+      setSelectedUser({
+        ...selectedUser,
+        roles: (selectedUser.roles || []).filter((r) => r !== roleName),
+      })
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : err?.message || "No se pudo remover el rol"
+      toast({ variant: "destructive", title: "Error al remover", description: msg })
+    } finally {
+      setRemovingRole(null)
     }
   }
 
@@ -151,7 +175,21 @@ export default function AsignacionRolesPage() {
                   <p className="text-xs font-medium text-muted-foreground">Roles actuales</p>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {selectedUser.roles?.length ? (
-                      selectedUser.roles.map((r) => <Badge key={r}>{r}</Badge>)
+                      selectedUser.roles.map((r) => (
+                        <div key={r} className="flex items-center gap-1">
+                          <Badge>{r}</Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleRemoveRole(r)}
+                            disabled={removingRole === r}
+                            title="Quitar rol"
+                          >
+                            {removingRole === r ? <Loader2 className="w-3 h-3 animate-spin" /> : "✕"}
+                          </Button>
+                        </div>
+                      ))
                     ) : (
                       <Badge variant="secondary">Sin roles</Badge>
                     )}

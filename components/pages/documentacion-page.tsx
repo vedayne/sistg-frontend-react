@@ -9,6 +9,7 @@ import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
+import { useToast } from "@/components/ui/use-toast"
 
 const DOCUMENTOS = [
   {
@@ -102,14 +103,26 @@ const DOCUMENTOS = [
 ]
 
 export default function DocumentacionPage() {
+  const { toast } = useToast()
   const [selectedDoc, setSelectedDoc] = useState<(typeof DOCUMENTOS)[0] | null>(null)
   const [searchEstudiante, setSearchEstudiante] = useState("")
   const [searchGestion, setSearchGestion] = useState("")
   const [searchSemestre, setSearchSemestre] = useState("")
   const [searchFase, setSearchFase] = useState("")
   const [showNotaModal, setShowNotaModal] = useState(false)
-  const [notaFecha, setNotaFecha] = useState(() => new Date().toISOString().slice(0, 10))
-  const [notaCite, setNotaCite] = useState("")
+  const [notaForm, setNotaForm] = useState({
+    cite: "",
+    fecha: new Date().toISOString().slice(0, 10),
+    tituloProyecto: "",
+    postulante: "",
+    tutor: "",
+    revisor1: "",
+    revisor2: "",
+    docenteTG: "",
+    fase: "",
+    jefeCarrera: "",
+    gradoJefe: "",
+  })
 
   const filteredDocumentos = useMemo(() => {
     return DOCUMENTOS.filter((doc) => {
@@ -296,26 +309,92 @@ export default function DocumentacionPage() {
 
       {/* Modal Nota de Servicio */}
       <Dialog open={showNotaModal} onOpenChange={setShowNotaModal}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-primary">Generar Nota de Servicio</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="grid md:grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="cite">CITE</Label>
-              <Input id="cite" value={notaCite} onChange={(e) => setNotaCite(e.target.value)} placeholder="Ej. CITE-123/2024" />
+              <Label>CITE</Label>
+              <Input
+                value={notaForm.cite}
+                onChange={(e) => setNotaForm({ ...notaForm, cite: e.target.value })}
+                placeholder="Ej. CITE-123/2024"
+              />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="fecha">Fecha</Label>
-              <Input id="fecha" type="date" value={notaFecha} onChange={(e) => setNotaFecha(e.target.value)} />
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={notaForm.fecha}
+                onChange={(e) => setNotaForm({ ...notaForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2 md:col-span-2">
+              <Label>Título de Proyecto</Label>
+              <Input
+                value={notaForm.tituloProyecto}
+                onChange={(e) => setNotaForm({ ...notaForm, tituloProyecto: e.target.value })}
+                placeholder="Título del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Postulante</Label>
+              <Input value={notaForm.postulante} onChange={(e) => setNotaForm({ ...notaForm, postulante: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Tutor</Label>
+              <Input value={notaForm.tutor} onChange={(e) => setNotaForm({ ...notaForm, tutor: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Vocal Revisor (Rev 1)</Label>
+              <Input value={notaForm.revisor1} onChange={(e) => setNotaForm({ ...notaForm, revisor1: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Vocal Revisor 2 (opcional)</Label>
+              <Input value={notaForm.revisor2} onChange={(e) => setNotaForm({ ...notaForm, revisor2: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Docente TG</Label>
+              <Input value={notaForm.docenteTG} onChange={(e) => setNotaForm({ ...notaForm, docenteTG: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Input value={notaForm.fase} onChange={(e) => setNotaForm({ ...notaForm, fase: e.target.value })} placeholder="Ej. BORRADOR FINAL" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Jefe de Carrera</Label>
+              <Input value={notaForm.jefeCarrera} onChange={(e) => setNotaForm({ ...notaForm, jefeCarrera: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Grado Jefe</Label>
+              <Input value={notaForm.gradoJefe} onChange={(e) => setNotaForm({ ...notaForm, gradoJefe: e.target.value })} />
             </div>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowNotaModal(false)}>Cancelar</Button>
             <Button
               onClick={() => {
-                const fechaLegible = notaFecha ? new Date(notaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" }) : ""
-                openNotaServicioWindow({ fecha: fechaLegible, cite: notaCite || "S/N" })
+                if (!notaForm.postulante || !notaForm.tutor || !notaForm.revisor1 || !notaForm.docenteTG || !notaForm.tituloProyecto) {
+                  toast({ variant: "destructive", title: "Completa los campos obligatorios" })
+                  return
+                }
+                const fechaLegible = notaForm.fecha
+                  ? new Date(notaForm.fecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                  : ""
+                openNotaServicioWindow({
+                  fecha: fechaLegible,
+                  cite: notaForm.cite || "S/N",
+                  tituloProyecto: notaForm.tituloProyecto,
+                  postulante: notaForm.postulante,
+                  tutor: notaForm.tutor,
+                  revisor1: notaForm.revisor1,
+                  revisor2: notaForm.revisor2,
+                  docenteTG: notaForm.docenteTG,
+                  fase: notaForm.fase,
+                  jefeCarrera: notaForm.jefeCarrera,
+                  gradoJefe: notaForm.gradoJefe,
+                })
                 setShowNotaModal(false)
               }}
             >
