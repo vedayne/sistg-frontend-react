@@ -192,9 +192,7 @@ export default function ListadoUsuarioPage() {
     setChangePasswordLoading(true)
     setChangePasswordSuccess(false)
     try {
-      // Reset password to CI - the default password is the user's carnet de identidad
-      const defaultPassword = usuario.cod || usuario.idSaga?.toString() || "12345678"
-      await apiClient.users.update(usuario.id, { password: defaultPassword })
+      const res = await apiClient.users.resetPassword(usuario.id)
       setChangePasswordSuccess(true)
       setTimeout(() => {
         setChangePasswordSuccess(false)
@@ -539,9 +537,9 @@ export default function ListadoUsuarioPage() {
             </DialogHeader>
             {selectedUsuario && (
               <div className="space-y-4 max-h-[80vh] overflow-y-auto">
-                {changePasswordSuccess && (
+              {changePasswordSuccess && (
                 <Alert className="bg-green-50 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200">
-                  <AlertDescription>Contraseña restablecida correctamente al documento de identidad.</AlertDescription>
+                  <AlertDescription>Contraseña restablecida correctamente al documento de identidad (via backend).</AlertDescription>
                 </Alert>
               )}
 

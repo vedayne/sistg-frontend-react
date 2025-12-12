@@ -9,6 +9,9 @@ import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
+import { renderActa } from "@/components/reportes/acta-aprobacion"
+import { renderCartaInvitacion } from "@/components/reportes/carta-invitacion"
+import { renderCartaAceptacion } from "@/components/reportes/carta-aceptacion"
 import { useToast } from "@/components/ui/use-toast"
 
 const DOCUMENTOS = [
@@ -123,6 +126,25 @@ export default function DocumentacionPage() {
     jefeCarrera: "",
     gradoJefe: "",
   })
+  const [showActaModal, setShowActaModal] = useState(false)
+  const [actaForm, setActaForm] = useState({
+    cite: "",
+    ciudad: "LA PAZ",
+    hora: "12:00",
+    fechaLarga: "18 de Octubre de 2024",
+    postulante: "",
+    tituloProyecto: "",
+    revisor1: "",
+    revisor2: "",
+    tutor: "",
+    docenteTG: "",
+    jefeCarrera: "",
+    gradoJefe: "",
+    fase: "BORRADOR FINAL",
+  })
+  const [showCartaInvModal, setShowCartaInvModal] = useState(false)
+  const [showCartaAceModal, setShowCartaAceModal] = useState(false)
+  const [cartaFecha, setCartaFecha] = useState(new Date().toISOString().slice(0, 10))
 
   const filteredDocumentos = useMemo(() => {
     return DOCUMENTOS.filter((doc) => {
@@ -149,6 +171,15 @@ export default function DocumentacionPage() {
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" className="gap-2" onClick={() => setShowNotaModal(true)}>
           <FilePlus className="w-4 h-4" /> Generar Nota de Servicio
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowActaModal(true)}>
+          <FilePlus className="w-4 h-4" /> Generar Acta (Borrador Final)
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowCartaInvModal(true)}>
+          <FilePlus className="w-4 h-4" /> Carta de Invitación
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowCartaAceModal(true)}>
+          <FilePlus className="w-4 h-4" /> Carta de Aceptación
         </Button>
       </div>
 
@@ -399,6 +430,98 @@ export default function DocumentacionPage() {
               }}
             >
               Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Acta de Aprobación */}
+      <Dialog open={showActaModal} onOpenChange={setShowActaModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Generar Acta de Aprobación</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input value={actaForm.cite} onChange={(e) => setActaForm({ ...actaForm, cite: e.target.value })} placeholder="Ej. 082" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input value={actaForm.ciudad} onChange={(e) => setActaForm({ ...actaForm, ciudad: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Hora</Label>
+              <Input value={actaForm.hora} onChange={(e) => setActaForm({ ...actaForm, hora: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha (texto)</Label>
+              <Input value={actaForm.fechaLarga} onChange={(e) => setActaForm({ ...actaForm, fechaLarga: e.target.value })} />
+            </div>
+            <div className="grid gap-2 md:col-span-2">
+              <Label>Título de Proyecto</Label>
+              <Input value={actaForm.tituloProyecto} onChange={(e) => setActaForm({ ...actaForm, tituloProyecto: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Postulante</Label>
+              <Input value={actaForm.postulante} onChange={(e) => setActaForm({ ...actaForm, postulante: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Vocal Revisor 1</Label>
+              <Input value={actaForm.revisor1} onChange={(e) => setActaForm({ ...actaForm, revisor1: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Vocal Revisor 2</Label>
+              <Input value={actaForm.revisor2} onChange={(e) => setActaForm({ ...actaForm, revisor2: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Tutor</Label>
+              <Input value={actaForm.tutor} onChange={(e) => setActaForm({ ...actaForm, tutor: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Docente TG</Label>
+              <Input value={actaForm.docenteTG} onChange={(e) => setActaForm({ ...actaForm, docenteTG: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Input value={actaForm.fase} onChange={(e) => setActaForm({ ...actaForm, fase: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Jefe de Carrera</Label>
+              <Input value={actaForm.jefeCarrera} onChange={(e) => setActaForm({ ...actaForm, jefeCarrera: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Grado Jefe</Label>
+              <Input value={actaForm.gradoJefe} onChange={(e) => setActaForm({ ...actaForm, gradoJefe: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowActaModal(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (!actaForm.cite || !actaForm.postulante || !actaForm.tituloProyecto || !actaForm.revisor1 || !actaForm.revisor2 || !actaForm.tutor || !actaForm.docenteTG) {
+                  toast({ variant: "destructive", title: "Completa los campos obligatorios" })
+                  return
+                }
+                renderActa({
+                  cite: actaForm.cite,
+                  ciudad: actaForm.ciudad,
+                  hora: actaForm.hora,
+                  fechaLarga: actaForm.fechaLarga,
+                  postulante: actaForm.postulante,
+                  tituloProyecto: actaForm.tituloProyecto,
+                  revisor1: actaForm.revisor1,
+                  revisor2: actaForm.revisor2,
+                  tutor: actaForm.tutor,
+                  docenteTG: actaForm.docenteTG,
+                  jefeCarrera: actaForm.jefeCarrera,
+                  gradoJefe: actaForm.gradoJefe,
+                  fase: actaForm.fase,
+                })
+                setShowActaModal(false)
+              }}
+            >
+              Generar Acta
             </Button>
           </DialogFooter>
         </DialogContent>

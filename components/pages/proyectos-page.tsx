@@ -14,6 +14,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import type { ProjectResponseDto, CreateProjectDto, ResearchLine, Gestion, EstudianteBasicInfo, DocenteBasicInfo, UserBasicInfo, Phase } from "@/lib/types"
 import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
+import { renderCartaInvitacion } from "@/components/reportes/carta-invitacion"
+import { renderCartaAceptacion } from "@/components/reportes/carta-aceptacion"
+import { renderActa } from "@/components/reportes/acta-aprobacion"
 import { Label } from "@/components/ui/label"
 
 export default function ProyectosPage() {
@@ -32,6 +35,13 @@ export default function ProyectosPage() {
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [faseSelected, setFaseSelected] = useState("")
+  const [showInvModal, setShowInvModal] = useState(false)
+  const [showAceModal, setShowAceModal] = useState(false)
+  const [cartaInvFecha, setCartaInvFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [cartaAceFecha, setCartaAceFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [showActaModal, setShowActaModal] = useState(false)
+  const [actaCite, setActaCite] = useState("")
+  const [actaDate, setActaDate] = useState(() => new Date().toISOString().slice(0, 10))
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -211,7 +221,7 @@ export default function ProyectosPage() {
   }, [showCreateModal])
 
   useEffect(() => {
-    if (showNotaModal && phases.length === 0) {
+    if ((showNotaModal || showActaModal) && phases.length === 0) {
       const loadPhases = async () => {
         try {
           setPhasesLoading(true)
@@ -524,6 +534,7 @@ export default function ProyectosPage() {
                 </Select>
               </div>
               <div className="border-t pt-4">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -534,8 +545,37 @@ export default function ProyectosPage() {
                       setShowNotaModal(true)
                     }}
                   >
-                    Generar Nota de Servicio
+                    Nota de Servicio
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setActaCite(`ACTA-${detailProject.id}-${new Date().getFullYear()}`)
+                      setActaDate(new Date().toISOString().slice(0, 10))
+                      setShowActaModal(true)
+                    }}
+                  >
+                    Acta Aprobación
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCartaInvFecha(new Date().toISOString().slice(0, 10))
+                      setShowInvModal(true)
+                    }}
+                  >
+                    Carta Invitación
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCartaAceFecha(new Date().toISOString().slice(0, 10))
+                      setShowAceModal(true)
+                    }}
+                  >
+                    Carta Aceptación
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -616,6 +656,115 @@ export default function ProyectosPage() {
               disabled={!detailProject}
             >
               Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Carta de Invitación */}
+      <Dialog open={showInvModal} onOpenChange={setShowInvModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Generar Carta de Invitación</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={cartaInvFecha} onChange={(e) => setCartaInvFecha(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowInvModal(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const fechaLegible = cartaInvFecha
+                  ? new Date(cartaInvFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                  : ""
+                renderCartaInvitacion({ fecha: fechaLegible })
+                setShowInvModal(false)
+              }}
+            >
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Carta de Aceptación */}
+      <Dialog open={showAceModal} onOpenChange={setShowAceModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Generar Carta de Aceptación</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={cartaAceFecha} onChange={(e) => setCartaAceFecha(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowAceModal(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const fechaLegible = cartaAceFecha
+                  ? new Date(cartaAceFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                  : ""
+                renderCartaAceptacion({ fecha: fechaLegible })
+                setShowAceModal(false)
+              }}
+            >
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Acta de Aprobación */}
+      <Dialog open={showActaModal} onOpenChange={setShowActaModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generar Acta de Aprobación</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input value={actaCite} onChange={(e) => setActaCite(e.target.value)} placeholder="Ej. ACTA-001" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={actaDate} onChange={(e) => setActaDate(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowActaModal(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (!detailProject) {
+                  toast({ variant: "destructive", title: "Sin proyecto cargado" })
+                  return
+                }
+                const fechaLarga = actaDate
+                  ? new Date(actaDate).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                  : ""
+                renderActa({
+                  cite: actaCite || "S/N",
+                  ciudad: "LA PAZ",
+                  hora: "12:00",
+                  fechaLarga: fechaLarga || "S/F",
+                  postulante: detailProject.estudiante?.nombreCompleto || "",
+                  tituloProyecto: detailProject.titulo || "",
+                  revisor1: detailProject.docenteRev1?.nombreCompleto || "",
+                  revisor2: detailProject.docenteRev2?.nombreCompleto || "S/N",
+                  tutor: detailProject.docenteTutor?.nombreCompleto || "",
+                  docenteTG: detailProject.docenteTG?.nombreCompleto || "",
+                  jefeCarrera: detailProject.userJefeC?.nombreCompleto || detailProject.userJefeC?.email || "Jefe de Carrera",
+                  gradoJefe: detailProject.userJefeC?.grado || "",
+                  fase: faseSelected || "BORRADOR FINAL",
+                })
+                setShowActaModal(false)
+              }}
+            >
+              Generar Acta
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -333,6 +333,10 @@ export const apiClient = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    resetPassword: async (id: string) =>
+      apiClient.request<{ ok: boolean; message?: string }>(`/users/${id}/reset-password`, {
+        method: "POST",
+      }),
 
     assignRole: async (id: string, roleId: number) =>
       apiClient.request(`/users/${id}/roles`, {
