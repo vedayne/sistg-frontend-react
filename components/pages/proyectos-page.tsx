@@ -14,9 +14,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import type { ProjectResponseDto, CreateProjectDto, ResearchLine, Gestion, EstudianteBasicInfo, DocenteBasicInfo, UserBasicInfo, Phase } from "@/lib/types"
 import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
-import { renderCartaInvitacion } from "@/components/reportes/carta-invitacion"
-import { renderCartaAceptacion } from "@/components/reportes/carta-aceptacion"
-import { renderActa } from "@/components/reportes/acta-aprobacion"
+import { openCartaInvitacionWindow } from "@/components/reportes/carta-invitacion-tutor"
+import { openCartaAceptacionWindow } from "@/components/reportes/carta-aceptacion-tutor"
+import { openActaAprobacionWindow } from "@/components/reportes/acta-aprobacion"
 import { Label } from "@/components/ui/label"
 
 export default function ProyectosPage() {
@@ -35,13 +35,20 @@ export default function ProyectosPage() {
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [faseSelected, setFaseSelected] = useState("")
-  const [showInvModal, setShowInvModal] = useState(false)
-  const [showAceModal, setShowAceModal] = useState(false)
-  const [cartaInvFecha, setCartaInvFecha] = useState(() => new Date().toISOString().slice(0, 10))
-  const [cartaAceFecha, setCartaAceFecha] = useState(() => new Date().toISOString().slice(0, 10))
+
+  // Report Modals State
+  const [showInvitacionModal, setShowInvitacionModal] = useState(false)
+  const [invitacionFecha, setInvitacionFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [invitacionSemestre, setInvitacionSemestre] = useState("Octavo")
+  const [invitacionCarrera, setInvitacionCarrera] = useState("Ingeniería de Sistemas")
+
+  const [showAceptacionModal, setShowAceptacionModal] = useState(false)
+  const [aceptacionFecha, setAceptacionFecha] = useState(() => new Date().toISOString().slice(0, 10))
+
   const [showActaModal, setShowActaModal] = useState(false)
   const [actaCite, setActaCite] = useState("")
-  const [actaDate, setActaDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [actaFecha, setActaFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [actaHora, setActaHora] = useState("10:00")
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -422,7 +429,7 @@ export default function ProyectosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                {proyectos.length > 0 ? (
+                  {proyectos.length > 0 ? (
                     proyectos
                       .filter((p) => {
                         if (!searchTerm) return true
@@ -432,30 +439,30 @@ export default function ProyectosPage() {
                         return title.includes(term) || student.includes(term)
                       })
                       .map((p) => (
-                      <tr key={p.id} className="border-b hover:bg-muted/50">
-                        <td className="p-3 font-medium">{p.titulo}</td>
-                        <td className="p-3">{p.estudiante?.nombreCompleto || "-"}</td>
-                        <td className="p-3">
-                          <div className="flex flex-col text-xs">
-                            <span>{p.lineaInvestigacion?.name || "-"}</span>
-                          </div>
-                        </td>
-                        <td className="p-3"><Badge variant="outline">{p.gestion?.gestion}</Badge></td>
-                        <td className="p-3">
-                          {p.isActive ? <Badge className="bg-green-100 text-green-800">Activo</Badge> : <Badge variant="secondary">Inactivo</Badge>}
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" title="Ver Detalles" onClick={() => openDetail(p.id)}>
-                              <Eye className="w-4 h-4 text-primary" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)} title="Eliminar">
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                        <tr key={p.id} className="border-b hover:bg-muted/50">
+                          <td className="p-3 font-medium">{p.titulo}</td>
+                          <td className="p-3">{p.estudiante?.nombreCompleto || "-"}</td>
+                          <td className="p-3">
+                            <div className="flex flex-col text-xs">
+                              <span>{p.lineaInvestigacion?.name || "-"}</span>
+                            </div>
+                          </td>
+                          <td className="p-3"><Badge variant="outline">{p.gestion?.gestion}</Badge></td>
+                          <td className="p-3">
+                            {p.isActive ? <Badge className="bg-green-100 text-green-800">Activo</Badge> : <Badge variant="secondary">Inactivo</Badge>}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="icon" title="Ver Detalles" onClick={() => openDetail(p.id)}>
+                                <Eye className="w-4 h-4 text-primary" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)} title="Eliminar">
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                   ) : (
                     <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No se encontraron proyectos.</td></tr>
                   )}
@@ -550,18 +557,8 @@ export default function ProyectosPage() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setActaCite(`ACTA-${detailProject.id}-${new Date().getFullYear()}`)
-                      setActaDate(new Date().toISOString().slice(0, 10))
-                      setShowActaModal(true)
-                    }}
-                  >
-                    Acta Aprobación
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setCartaInvFecha(new Date().toISOString().slice(0, 10))
-                      setShowInvModal(true)
+                      setInvitacionFecha(new Date().toISOString().slice(0, 10))
+                      setShowInvitacionModal(true)
                     }}
                   >
                     Carta Invitación
@@ -569,11 +566,21 @@ export default function ProyectosPage() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setCartaAceFecha(new Date().toISOString().slice(0, 10))
-                      setShowAceModal(true)
+                      setAceptacionFecha(new Date().toISOString().slice(0, 10))
+                      setShowAceptacionModal(true)
                     }}
                   >
                     Carta Aceptación
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setActaCite(`ACTA-${detailProject.id}-${new Date().getFullYear()}`)
+                      setActaFecha(new Date().toISOString().slice(0, 10))
+                      setShowActaModal(true)
+                    }}
+                  >
+                    Acta Aprobación
                   </Button>
                 </div>
               </div>
@@ -662,7 +669,7 @@ export default function ProyectosPage() {
       </Dialog>
 
       {/* Carta de Invitación */}
-      <Dialog open={showInvModal} onOpenChange={setShowInvModal}>
+      <Dialog open={showInvitacionModal} onOpenChange={setShowInvitacionModal}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Generar Carta de Invitación</DialogTitle>
@@ -670,18 +677,44 @@ export default function ProyectosPage() {
           <div className="space-y-3">
             <div className="grid gap-2">
               <Label>Fecha</Label>
-              <Input type="date" value={cartaInvFecha} onChange={(e) => setCartaInvFecha(e.target.value)} />
+              <Input type="date" value={invitacionFecha} onChange={(e) => setInvitacionFecha(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Semestre Estudiante</Label>
+              <Select value={invitacionSemestre} onValueChange={setInvitacionSemestre}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Octavo">Octavo</SelectItem>
+                  <SelectItem value="Noveno">Noveno</SelectItem>
+                  <SelectItem value="Décimo">Décimo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Carrera</Label>
+              <Input value={invitacionCarrera} onChange={(e) => setInvitacionCarrera(e.target.value)} />
             </div>
           </div>
           <DialogFooter className="pt-4">
-            <Button variant="outline" onClick={() => setShowInvModal(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setShowInvitacionModal(false)}>Cancelar</Button>
             <Button
               onClick={() => {
-                const fechaLegible = cartaInvFecha
-                  ? new Date(cartaInvFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                const fechaLegible = invitacionFecha
+                  ? new Date(invitacionFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
                   : ""
-                renderCartaInvitacion({ fecha: fechaLegible })
-                setShowInvModal(false)
+
+                if (!detailProject) return
+
+                openCartaInvitacionWindow({
+                  ciudadFecha: `La Paz, ${fechaLegible}`,
+                  destinatarioNombre: detailProject.docenteTutor?.nombreCompleto || "TUTOR ASIGNADO",
+                  destinatarioCargo: "DOCENTE DE LA EMI", // Generic title as requested role isn't clear in prompt
+                  estudianteNombre: detailProject.estudiante?.nombreCompleto || "",
+                  estudianteSemestre: invitacionSemestre,
+                  estudianteCarrera: invitacionCarrera,
+                  tituloProyecto: detailProject.titulo || "",
+                })
+                setShowInvitacionModal(false)
               }}
             >
               Generar
@@ -691,7 +724,7 @@ export default function ProyectosPage() {
       </Dialog>
 
       {/* Carta de Aceptación */}
-      <Dialog open={showAceModal} onOpenChange={setShowAceModal}>
+      <Dialog open={showAceptacionModal} onOpenChange={setShowAceptacionModal}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Generar Carta de Aceptación</DialogTitle>
@@ -699,18 +732,29 @@ export default function ProyectosPage() {
           <div className="space-y-3">
             <div className="grid gap-2">
               <Label>Fecha</Label>
-              <Input type="date" value={cartaAceFecha} onChange={(e) => setCartaAceFecha(e.target.value)} />
+              <Input type="date" value={aceptacionFecha} onChange={(e) => setAceptacionFecha(e.target.value)} />
             </div>
           </div>
           <DialogFooter className="pt-4">
-            <Button variant="outline" onClick={() => setShowAceModal(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setShowAceptacionModal(false)}>Cancelar</Button>
             <Button
               onClick={() => {
-                const fechaLegible = cartaAceFecha
-                  ? new Date(cartaAceFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                const fechaLegible = aceptacionFecha
+                  ? new Date(aceptacionFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
                   : ""
-                renderCartaAceptacion({ fecha: fechaLegible })
-                setShowAceModal(false)
+
+                if (!detailProject) return
+
+                openCartaAceptacionWindow({
+                  ciudadFecha: `La Paz, ${fechaLegible}`,
+                  jefeNombre: detailProject.userJefeC?.nombreCompleto || detailProject.userJefeC?.email || "JEFE DE CARRERA",
+                  jefeCargo: "JEFE DE CARRERA",
+                  estudianteNombre: detailProject.estudiante?.nombreCompleto || "",
+                  estudianteEspecialidad: invitacionCarrera, // Use same career as invitation or default
+                  tituloProyecto: detailProject.titulo || "",
+                  tutorNombre: detailProject.docenteTutor?.nombreCompleto || "",
+                })
+                setShowAceptacionModal(false)
               }}
             >
               Generar
@@ -732,7 +776,26 @@ export default function ProyectosPage() {
             </div>
             <div className="grid gap-2">
               <Label>Fecha</Label>
-              <Input type="date" value={actaDate} onChange={(e) => setActaDate(e.target.value)} />
+              <Input type="date" value={actaFecha} onChange={(e) => setActaFecha(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Hora</Label>
+              <Input type="time" value={actaHora} onChange={(e) => setActaHora(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Select value={faseSelected} onValueChange={setFaseSelected}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona fase" />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((f) => (
+                    <SelectItem key={f.id} value={f.name}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter className="pt-4">
@@ -743,13 +806,13 @@ export default function ProyectosPage() {
                   toast({ variant: "destructive", title: "Sin proyecto cargado" })
                   return
                 }
-                const fechaLarga = actaDate
-                  ? new Date(actaDate).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                const fechaLarga = actaFecha
+                  ? new Date(actaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
                   : ""
-                renderActa({
+                openActaAprobacionWindow({
                   cite: actaCite || "S/N",
                   ciudad: "LA PAZ",
-                  hora: "12:00",
+                  hora: actaHora,
                   fechaLarga: fechaLarga || "S/F",
                   postulante: detailProject.estudiante?.nombreCompleto || "",
                   tituloProyecto: detailProject.titulo || "",

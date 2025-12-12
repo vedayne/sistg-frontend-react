@@ -17,7 +17,7 @@ type ActaParams = {
 const styles = `
 @page {
   size: letter;
-  margin: 3.5cm 2.5cm 3cm 3cm;
+  margin: 0;
 }
 
 * { box-sizing: border-box; }
@@ -25,8 +25,8 @@ const styles = `
 body {
   margin: 0;
   padding: 0;
-  font-family: "Times New Roman", serif;
-  font-size: 14px;
+  font-family: Arial, sans-serif;
+  font-size: 12pt;
   color: #000;
   background: #e5e7eb;
   display: flex;
@@ -38,7 +38,8 @@ body {
   width: 21.59cm; /* carta */
   min-height: 27.94cm;
   background: white;
-  padding: 24px 32px;
+  padding: 3cm 2.5cm 3cm 3.5cm;
+  margin: 20px auto;
   border: 1px solid #d1d5db;
   box-shadow: 0 10px 30px rgba(0,0,0,0.15);
 }
@@ -52,30 +53,32 @@ body {
 .cite {
   text-align: right;
   font-weight: bold;
-  font-size: 16px;
-  margin: 0 0 6px 0;
+  font-size: 12pt;
+  margin: 0 0 24px 0;
 }
 
 .title {
   text-align: center;
   font-weight: bold;
-  font-size: 20px;
+  font-size: 14pt;
   margin: 6px 0 22px;
   text-transform: uppercase;
+  text-decoration: underline;
 }
 
 .body {
   text-align: justify;
-  line-height: 1.55;
-  font-size: 16px;
+  line-height: 1.5;
+  font-size: 12pt;
 }
 
 .p { margin: 0 0 14px 0; }
 
 .resuelve {
   font-weight: bold;
-  font-size: 18px;
+  font-size: 12pt;
   margin: 18px 0 8px;
+  text-align: center; /* Usually centered or left? Original was implied block. Let's keep distinct */
 }
 
 .art {
@@ -88,25 +91,25 @@ body {
 }
 
 .signatures {
-  margin-top: 80px;
+  margin-top: 120px;
 }
 
 .sign-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 60px 90px;
+  gap: 60px 40px;
   align-items: start;
 }
 
 .sign-item { text-align: center; }
-.sign-name { text-transform: uppercase; font-size: 16px; margin-bottom: 4px; }
-.sign-role { font-weight: bold; text-transform: uppercase; font-size: 18px; }
+.sign-name { text-transform: uppercase; font-size: 11pt; margin-bottom: 4px; font-weight: bold; }
+.sign-role { font-weight: bold; text-transform: uppercase; font-size: 11pt; }
 
 .sign-bottom { margin-top: 70px; text-align: center; }
 
 @media print {
-  body { background: white; padding: 0; }
-  .page { box-shadow: none; border: none; }
+  body { background: white; padding: 0; display: block; }
+  .page { box-shadow: none; border: none; margin: 0; width: auto; height: auto; }
 }
 `
 
@@ -130,7 +133,6 @@ const buildHtml = (p: ActaParams) => {
 </head>
 <body>
   <div class="page">
-    <hr class="hr-top" />
     <div class="cite">${esc(p.cite)}</div>
 
     <div class="title">
@@ -168,12 +170,12 @@ const buildHtml = (p: ActaParams) => {
       <div class="sign-grid">
         <div class="sign-item">
           <div class="sign-name">{{REVISOR1}}</div>
-          <div class="sign-role">VOCAL REVISOR DE LA CARRERA</div>
+          <div class="sign-role">VOCAL REVISOR</div>
         </div>
 
         <div class="sign-item">
           <div class="sign-name">{{REVISOR2}}</div>
-          <div class="sign-role">VOCAL REVISOR DE LA CARRERA</div>
+          <div class="sign-role">VOCAL REVISOR</div>
         </div>
 
         <div class="sign-item">
@@ -183,7 +185,7 @@ const buildHtml = (p: ActaParams) => {
 
         <div class="sign-item">
           <div class="sign-name">{{DOCTG}}</div>
-          <div class="sign-role">DOCENTE DE TRABAJO DE GRADO</div>
+          <div class="sign-role">DOCENTE T.G.</div>
         </div>
       </div>
 
@@ -198,7 +200,7 @@ const buildHtml = (p: ActaParams) => {
 </html>`
 }
 
-export const renderActa = (p: ActaParams) => {
+export const openActaAprobacionWindow = (p: ActaParams) => {
   const html = buildHtml(p)
     .replaceAll("{{POSTULANTE}}", esc(p.postulante).toUpperCase())
     .replaceAll("{{TITULO}}", esc(p.tituloProyecto).toUpperCase())
@@ -209,11 +211,13 @@ export const renderActa = (p: ActaParams) => {
     .replaceAll("{{GRADO}}", esc(p.gradoJefe || "").toUpperCase())
     .replaceAll("{{JEFE}}", esc(p.jefeCarrera || "S/N").toUpperCase())
 
-  const w = window.open("", "_blank", "width=850,height=1100")
+  if (typeof window === "undefined") return
+  const w = window.open("", "_blank")
   if (!w) return
   w.document.write(html)
   w.document.close()
   w.focus()
+  setTimeout(() => w.print(), 500)
 }
 
 export type { ActaParams }

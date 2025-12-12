@@ -9,9 +9,9 @@ import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
-import { renderActa } from "@/components/reportes/acta-aprobacion"
-import { renderCartaInvitacion } from "@/components/reportes/carta-invitacion"
-import { renderCartaAceptacion } from "@/components/reportes/carta-aceptacion"
+import { openActaAprobacionWindow } from "@/components/reportes/acta-aprobacion"
+import { openCartaInvitacionWindow } from "@/components/reportes/carta-invitacion-tutor"
+import { openCartaAceptacionWindow } from "@/components/reportes/carta-aceptacion-tutor"
 import { useToast } from "@/components/ui/use-toast"
 
 const DOCUMENTOS = [
@@ -435,6 +435,70 @@ export default function DocumentacionPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal Carta de Invitación (Simple Mock) */}
+      <Dialog open={showCartaInvModal} onOpenChange={setShowCartaInvModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Carta Invitación (Ejemplo)</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={cartaFecha} onChange={e => setCartaFecha(e.target.value)} />
+            </div>
+            <p className="text-sm text-muted-foreground">Generará una carta con datos de ejemplo.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCartaInvModal(false)}>Cancelar</Button>
+            <Button onClick={() => {
+              const fechaLegible = new Date(cartaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+              openCartaInvitacionWindow({
+                ciudadFecha: `La Paz, ${fechaLegible}`,
+                destinatarioNombre: "ING. EJEMPLO TUTOR",
+                destinatarioCargo: "DOCENTE DE LA EMI",
+                estudianteNombre: "ESTUDIANTE EJEMPLO",
+                estudianteCarrera: "Ingeniería de Sistemas",
+                estudianteSemestre: "Octavo",
+                tituloProyecto: "SISTEMA DE EJEMPLO PARA GESTION ACADEMICA"
+              })
+              setShowCartaInvModal(false)
+            }}>Generar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Carta de Aceptación (Simple Mock) */}
+      <Dialog open={showCartaAceModal} onOpenChange={setShowCartaAceModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Carta Aceptación (Ejemplo)</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={cartaFecha} onChange={e => setCartaFecha(e.target.value)} />
+            </div>
+            <p className="text-sm text-muted-foreground">Generará una carta con datos de ejemplo.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCartaAceModal(false)}>Cancelar</Button>
+            <Button onClick={() => {
+              const fechaLegible = new Date(cartaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+              openCartaAceptacionWindow({
+                ciudadFecha: `La Paz, ${fechaLegible}`,
+                jefeNombre: "CNL. DAEN. EJEMPLO JEFE",
+                jefeCargo: "JEFE DE CARRERA",
+                estudianteNombre: "ESTUDIANTE EJEMPLO",
+                estudianteEspecialidad: "Ingeniería de Sistemas",
+                tituloProyecto: "SISTEMA DE EJEMPLO PARA GESTION ACADEMICA",
+                tutorNombre: "ING. TUTOR EJEMPLO"
+              })
+              setShowCartaAceModal(false)
+            }}>Generar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal Acta de Aprobación */}
       <Dialog open={showActaModal} onOpenChange={setShowActaModal}>
         <DialogContent className="max-w-2xl">
@@ -503,7 +567,7 @@ export default function DocumentacionPage() {
                   toast({ variant: "destructive", title: "Completa los campos obligatorios" })
                   return
                 }
-                renderActa({
+                openActaAprobacionWindow({
                   cite: actaForm.cite,
                   ciudad: actaForm.ciudad,
                   hora: actaForm.hora,
