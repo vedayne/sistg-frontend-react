@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const refreshed = await apiClient.auth.refresh()
             if ((refreshed as any).access_token) {
               token = (refreshed as any).access_token
+              if ( !token ) throw new Error("No se pudo refrescar la sesión")
               apiClient.setAccessToken(token)
               setHasValidSession(true)
               console.log("[v0] Token refrescado desde cookie de sesión")

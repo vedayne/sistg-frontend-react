@@ -96,10 +96,12 @@ export interface DocenteBasicInfo {
   especialidad?: string
 }
 
+export type UserStatus = "ACTIVE" | "INACTIVE" | "BLOCKED" | "MUST_CHANGE_PASSWORD"
+
 export interface UserBasicInfo {
   id: string
   email: string
-  status: string
+  status: UserStatus
   nombres?: string
   apPaterno?: string
   apMaterno?: string
@@ -111,6 +113,19 @@ export interface UserBasicInfo {
   especialidad?: string
   idSaga?: number
   emailPersonal?: string
+}
+
+export interface UserFilters {
+  page: number
+  limit: number
+  search?: string
+  sortBy?: "id" | "email" | "status" | "createdAt"
+  sortOrder?: "asc" | "desc"
+  fields?: string
+  // Note: status and role filters are not in official API docs
+  // but implemented in case backend supports them
+  status?: UserStatus | string
+  role?: string
 }
 
 export interface Entrega {

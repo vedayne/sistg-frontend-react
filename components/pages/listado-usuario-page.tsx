@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,13 +9,15 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Mail, Lock, Loader2, X, Plus, Eye, EyeOff } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
-import type { Pagination, UserBasicInfo } from "@/lib/types"
+import type { UserBasicInfo, UserFilters } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
 import { CenteredLoader } from "@/components/ui/centered-loader"
 import { RoleGuard } from "@/components/role-guard"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { useUsers } from "@/hooks/use-users"
+import { ErrorDisplay } from "@/components/ui/error-display"
 
 const ROLES_MAP: Record<string, string> = {
   ADMIN: "Administrador",
@@ -47,6 +49,8 @@ const USER_STATUSES = [
 export default function ListadoUsuarioPage() {
   const { user: currentUser } = useAuth()
   const { toast } = useToast()
+
+  // Form state
   const emptyCreateForm = {
     email: "",
     password: "",
@@ -59,16 +63,19 @@ export default function ListadoUsuarioPage() {
     tipo: "ADMINISTRATIVO",
     especialidades: [] as { idEspecialidad: number; especialidad: string }[],
   }
+
+  // Filter state
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [roleFilter, setRoleFilter] = useState("")
-  const [usuarios, setUsuarios] = useState<UserBasicInfo[]>([])
-  const [selectedUsuario, setSelectedUsuario] = useState<UserBasicInfo | null>(null)
-  const [pagination, setPagination] = useState<Pagination | null>(null)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+
+  // Users hook with Clean Architecture
+  const { users: usuarios, pagination, loading, error, fetchUsers, refetch, clearError } = useUsers()
+
+  // UI state
+  const [selectedUsuario, setSelectedUsuario] = useState<UserBasicInfo | null>(null)
   const [changePasswordLoading, setChangePasswordLoading] = useState(false)
   const [changePasswordSuccess, setChangePasswordSuccess] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
@@ -83,38 +90,22 @@ export default function ListadoUsuarioPage() {
   const [showCreatePassword, setShowCreatePassword] = useState(false)
   const allowedCreateRoles = ["ADMIN", "UTIC", "JEFECARRERA", "DDE", "SECRETARIA", "INVITADO"]
 
-  const fetchUsuarios = useCallback(
-    async (pageValue: number, limitValue: number, term: string, status = "", role = "") => {
-      setLoading(true)
-      try {
-        const response = await apiClient.users.list({
-          page: pageValue,
-          limit: limitValue,
-          search: term || undefined,
-          status: status || undefined,
-          role: role || undefined,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        })
-        setUsuarios(response.data)
-        setPagination(response.pagination)
-        setError(null)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "No se pudieron cargar los usuarios"
-        setError(message)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [],
-  )
-
+  // Debounced fetch with filters
   useEffect(() => {
     const handler = setTimeout(() => {
-      fetchUsuarios(page, limit, searchTerm, statusFilter, roleFilter)
+      const filters: Partial<UserFilters> = {
+        page,
+        limit,
+        search: searchTerm || undefined,
+        status: statusFilter || undefined,
+        role: roleFilter || undefined,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }
+      fetchUsers(filters)
     }, 350)
     return () => clearTimeout(handler)
-  }, [page, limit, searchTerm, statusFilter, roleFilter, fetchUsuarios])
+  }, [page, limit, searchTerm, statusFilter, roleFilter, fetchUsers])
 
   useEffect(() => {
     setStatusToSet(selectedUsuario?.status || "")
@@ -256,7 +247,7 @@ export default function ListadoUsuarioPage() {
       toast({ title: "Usuario creado correctamente" })
       setShowCreate(false)
       resetCreateForm()
-      fetchUsuarios(page, limit, searchTerm, statusFilter, roleFilter)
+      refetch()
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : err?.message || "No se pudo crear el usuario"
       toast({ variant: "destructive", title: "Error al crear", description: msg })
@@ -270,8 +261,8 @@ export default function ListadoUsuarioPage() {
     try {
       await apiClient.users.update(usuario.id, { status: newStatus })
       toast({ title: "Estado actualizado" })
-      setSelectedUsuario({ ...usuario, status: newStatus })
-      fetchUsuarios(page, limit, searchTerm, statusFilter, roleFilter)
+      setSelectedUsuario({ ...usuario, status: newStatus as any })
+      refetch()
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : err?.message || "No se pudo actualizar el estado"
       toast({ variant: "destructive", title: "Error", description: msg })
@@ -424,7 +415,20 @@ export default function ListadoUsuarioPage() {
               </select>
             </div>
           </div>
-          {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+
+          {/* Error display with beautiful UI */}
+          {error && (
+            <div className="mt-4">
+              <ErrorDisplay
+                message={error.message}
+                code={error.code}
+                title="Error al cargar usuarios"
+                onRetry={refetch}
+                onDismiss={clearError}
+                variant="destructive"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

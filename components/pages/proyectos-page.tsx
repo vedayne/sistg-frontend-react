@@ -458,7 +458,7 @@ export default function ProyectosPage() {
 
       {/* Detail Modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-9/12 overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle del Proyecto</DialogTitle>
           </DialogHeader>

@@ -30,8 +30,6 @@ export default function EntregasPage() {
       const response = await apiClient.admEntregas.list({
         page,
         limit,
-        sortBy: "createdAt",
-        sortOrder: "desc"
       })
       setEntregas(response.data)
       setPagination(response.pagination)
