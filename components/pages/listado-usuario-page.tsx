@@ -7,11 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mail, Lock, Loader2, X } from "lucide-react"
+import { Mail, Lock, Loader2, X, Plus, Eye, EyeOff } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import type { Pagination, UserBasicInfo } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
+import { CenteredLoader } from "@/components/ui/centered-loader"
+import { RoleGuard } from "@/components/role-guard"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
 
 const ROLES_MAP: Record<string, string> = {
   ADMIN: "Administrador",
@@ -42,6 +46,19 @@ const USER_STATUSES = [
 
 export default function ListadoUsuarioPage() {
   const { user: currentUser } = useAuth()
+  const { toast } = useToast()
+  const emptyCreateForm = {
+    email: "",
+    password: "",
+    nombre: "",
+    apPaterno: "",
+    apMaterno: "",
+    ci: "",
+    grado: "",
+    role: "",
+    tipo: "ADMINISTRATIVO",
+    especialidades: [] as { idEspecialidad: number; especialidad: string }[],
+  }
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [roleFilter, setRoleFilter] = useState("")
@@ -54,6 +71,17 @@ export default function ListadoUsuarioPage() {
   const [error, setError] = useState<string | null>(null)
   const [changePasswordLoading, setChangePasswordLoading] = useState(false)
   const [changePasswordSuccess, setChangePasswordSuccess] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [rolesOptions, setRolesOptions] = useState<{ id: number; name: string }[]>([])
+  const [createForm, setCreateForm] = useState({ ...emptyCreateForm })
+  const [specSearchTerm, setSpecSearchTerm] = useState("")
+  const [specResults, setSpecResults] = useState<{ idEspecialidad: number; especialidad: string }[]>([])
+  const [specLoading, setSpecLoading] = useState(false)
+  const [statusUpdating, setStatusUpdating] = useState(false)
+  const [statusToSet, setStatusToSet] = useState("")
+  const [showCreatePassword, setShowCreatePassword] = useState(false)
+  const allowedCreateRoles = ["ADMIN", "UTIC", "JEFECARRERA", "DDE", "SECRETARIA", "INVITADO"]
 
   const fetchUsuarios = useCallback(
     async (pageValue: number, limitValue: number, term: string, status = "", role = "") => {
@@ -88,6 +116,75 @@ export default function ListadoUsuarioPage() {
     return () => clearTimeout(handler)
   }, [page, limit, searchTerm, statusFilter, roleFilter, fetchUsuarios])
 
+  useEffect(() => {
+    setStatusToSet(selectedUsuario?.status || "")
+  }, [selectedUsuario])
+
+  useEffect(() => {
+    const loadRoles = async () => {
+      try {
+        const roles = await apiClient.roles.list()
+        setRolesOptions(roles)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    loadRoles()
+  }, [])
+
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      if (specSearchTerm.length < 2) {
+        setSpecResults([])
+        return
+      }
+      try {
+        setSpecLoading(true)
+        const res = await apiClient.specialities.list({ search: specSearchTerm, limit: 5 })
+        const data = Array.isArray(res) ? res : (res as any).data || []
+        setSpecResults(
+          data.map((d: any) => ({
+            idEspecialidad: d.idEspecialidad ?? d.id ?? d.idNivelAcad ?? Math.random(),
+            especialidad: d.especialidad || d.nivelAcad || d.name || "Especialidad",
+          })),
+        )
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setSpecLoading(false)
+      }
+    }, 250)
+    return () => clearTimeout(handler)
+  }, [specSearchTerm])
+
+  const resetCreateForm = () => {
+    setCreateForm({ ...emptyCreateForm, especialidades: [] })
+    setSpecSearchTerm("")
+    setSpecResults([])
+    setShowCreatePassword(false)
+  }
+
+  const handleAddEspecialidad = (esp: { idEspecialidad: number; especialidad: string }) => {
+    if (createForm.especialidades.some((e) => e.idEspecialidad === esp.idEspecialidad)) {
+      toast({ title: "Ya añadiste esta especialidad" })
+      return
+    }
+    if (createForm.especialidades.length >= 4) {
+      toast({ variant: "destructive", title: "Solo puedes asignar hasta 4 especialidades" })
+      return
+    }
+    setCreateForm((prev) => ({ ...prev, especialidades: [...prev.especialidades, esp] }))
+    setSpecSearchTerm("")
+    setSpecResults([])
+  }
+
+  const handleRemoveEspecialidad = (idEspecialidad: number) => {
+    setCreateForm((prev) => ({
+      ...prev,
+      especialidades: prev.especialidades.filter((e) => e.idEspecialidad !== idEspecialidad),
+    }))
+  }
+
   const handleClearFilters = () => {
     setSearchTerm("")
     setStatusFilter("")
@@ -119,9 +216,76 @@ export default function ListadoUsuarioPage() {
     }
   }
 
+  const handleCreateUser = async () => {
+    if (!canCreateUser) {
+      toast({ variant: "destructive", title: "No tienes permiso para crear usuarios" })
+      return
+    }
+
+    if (!createForm.email || !createForm.password || !createForm.nombre || !createForm.apPaterno || !createForm.apMaterno || !createForm.ci || !createForm.role) {
+      toast({ variant: "destructive", title: "Completa todos los campos obligatorios" })
+      return
+    }
+
+    try {
+      setCreating(true)
+      const payload: any = {
+        email: createForm.email,
+        password: createForm.password,
+        nombre: createForm.nombre,
+        apPaterno: createForm.apPaterno,
+        apMaterno: createForm.apMaterno,
+        ci: createForm.ci,
+        grado: createForm.grado || undefined,
+        tipo: createForm.tipo,
+      }
+
+      if (createForm.role === "SECRETARIA") {
+        const especIds = createForm.especialidades.map((e) => e.idEspecialidad).slice(0, 4)
+        payload.details = { especialidades: especIds }
+      }
+
+      const created: any = await apiClient.users.create(payload)
+      const newUserId = created?.data?.id || created?.id
+
+      const roleObj = rolesOptions.find((r) => r.name === createForm.role)
+      if (newUserId && roleObj) {
+        await apiClient.users.assignRole(newUserId, roleObj.id)
+      }
+
+      toast({ title: "Usuario creado correctamente" })
+      setShowCreate(false)
+      resetCreateForm()
+      fetchUsuarios(page, limit, searchTerm, statusFilter, roleFilter)
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : err?.message || "No se pudo crear el usuario"
+      toast({ variant: "destructive", title: "Error al crear", description: msg })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleChangeStatus = async (usuario: UserBasicInfo, newStatus: string) => {
+    setStatusUpdating(true)
+    try {
+      await apiClient.users.update(usuario.id, { status: newStatus })
+      toast({ title: "Estado actualizado" })
+      setSelectedUsuario({ ...usuario, status: newStatus })
+      fetchUsuarios(page, limit, searchTerm, statusFilter, roleFilter)
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : err?.message || "No se pudo actualizar el estado"
+      toast({ variant: "destructive", title: "Error", description: msg })
+    } finally {
+      setStatusUpdating(false)
+    }
+  }
+
   // Updated permission check: Check if user has ADMIN or UTIC role
   const canChangePassword = () =>
     currentUser?.roles?.some((r) => ["ADMIN", "UTIC", "ADMINISTRADOR"].includes(r.name))
+
+  const canCreateUser = currentUser?.roles?.some((r) => allowedCreateRoles.includes(r.name))
+  const canChangeStatus = currentUser?.roles?.some((r) => ["ADMIN", "UTIC", "ADMINISTRADOR"].includes(r.name))
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -148,6 +312,14 @@ export default function ListadoUsuarioPage() {
         <h1 className="text-3xl font-bold text-primary mb-2">Listado de Usuarios</h1>
         <p className="text-muted-foreground">Administración completa del directorio de usuarios del sistema</p>
       </div>
+
+      <RoleGuard allowed={allowedCreateRoles}>
+        <div className="flex justify-end">
+          <Button onClick={() => setShowCreate(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Nuevo Usuario
+          </Button>
+        </div>
+      </RoleGuard>
 
       {/* Buscador y Filtros */}
       <Card className="border-primary/10">
@@ -260,11 +432,9 @@ export default function ListadoUsuarioPage() {
       <Card>
         <CardContent className="pt-6">
           {loading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Cargando usuarios...
-            </div>
+            <CenteredLoader label="Cargando usuarios..." className="border rounded-xl bg-card" />
           )}
+          {!loading && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -272,7 +442,7 @@ export default function ListadoUsuarioPage() {
                   <th className="text-left py-3 px-4 font-bold">N°</th>
                   <th className="text-left py-3 px-4 font-bold">Foto</th>
                   <th className="text-left py-3 px-4 font-bold">Usuario</th>
-                  <th className="text-left py-3 px-4 font-bold">Rol</th>
+                  <th className="text-left py-3 px-4 font-bold">Roles</th>
                   <th className="text-left py-3 px-4 font-bold">Estado</th>
                   <th className="text-left py-3 px-4 font-bold">Acciones</th>
                 </tr>
@@ -291,9 +461,15 @@ export default function ListadoUsuarioPage() {
                       </td>
                       <td className="py-3 px-4 text-sm font-medium">{usuario.fullName || usuario.email}</td>
                       <td className="py-3 px-4">
-                        <Badge className="bg-primary text-primary-foreground">
-                          {usuario.roles?.[0] ? ROLES_MAP[usuario.roles[0]] || usuario.roles[0] : "Sin rol"}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {usuario.roles?.length
+                            ? usuario.roles.map((r) => (
+                                <Badge key={r} className="bg-primary/80 text-primary-foreground">
+                                  {ROLES_MAP[r] || r}
+                                </Badge>
+                              ))
+                            : <Badge variant="secondary">Sin rol</Badge>}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <Badge className={getStatusBadgeVariant(usuario.status)} variant="outline">
@@ -321,6 +497,7 @@ export default function ListadoUsuarioPage() {
               </tbody>
             </table>
           </div>
+          )}
 
           {/* Paginación */}
           <div className="flex items-center justify-between mt-6 text-sm text-muted-foreground">
@@ -354,11 +531,11 @@ export default function ListadoUsuarioPage() {
       <Dialog open={!!selectedUsuario} onOpenChange={() => setSelectedUsuario(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-primary">Detalles del Usuario</DialogTitle>
-          </DialogHeader>
-          {selectedUsuario && (
-            <div className="space-y-4 max-h-[80vh] overflow-y-auto">
-              {changePasswordSuccess && (
+              <DialogTitle className="text-primary">Detalles del Usuario</DialogTitle>
+            </DialogHeader>
+            {selectedUsuario && (
+              <div className="space-y-4 max-h-[80vh] overflow-y-auto">
+                {changePasswordSuccess && (
                 <Alert className="bg-green-50 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200">
                   <AlertDescription>Contraseña restablecida correctamente al documento de identidad.</AlertDescription>
                 </Alert>
@@ -373,62 +550,99 @@ export default function ListadoUsuarioPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Nombres y Apellidos</label>
-                <p className="font-medium">
-                  {selectedUsuario.fullName ||
-                    `${selectedUsuario.nombres || ""} ${selectedUsuario.apPaterno || ""} ${selectedUsuario.apMaterno || ""}`.trim() ||
-                    "-"}
-                </p>
-              </div>
+              <div className="grid gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Nombres y Apellidos</label>
+                  <p className="font-medium">
+                    {selectedUsuario.fullName ||
+                      `${selectedUsuario.nombres || ""} ${selectedUsuario.apPaterno || ""} ${selectedUsuario.apMaterno || ""}`.trim() ||
+                      "-"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Grado: {selectedUsuario.grado || "Sin grado"}</p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Unidad Académica</label>
-                <p className="font-medium">{selectedUsuario.especialidad || "-"}</p>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">CI / Código</label>
+                    <p className="font-medium font-mono text-sm">{selectedUsuario.cod || selectedUsuario.idSaga || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Tipo de usuario</label>
+                    <Badge variant="outline" className="uppercase text-xs">
+                      {selectedUsuario.tipo || "ADMINISTRATIVO"}
+                    </Badge>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Rol</label>
-                <Badge className="bg-primary text-primary-foreground">
-                  {selectedUsuario.roles?.[0]
-                    ? ROLES_MAP[selectedUsuario.roles[0]] || selectedUsuario.roles[0]
-                    : "Sin rol"}
-                </Badge>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Unidad Académica</label>
+                  <p className="font-medium">{selectedUsuario.especialidad || "-"}</p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Estado</label>
-                <Badge className={getStatusBadgeVariant(selectedUsuario.status)}>
-                  {getStatusLabel(selectedUsuario.status)}
-                </Badge>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Roles</label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUsuario.roles?.length ? (
+                      selectedUsuario.roles.map((r) => (
+                        <Badge key={r} className="bg-primary/80 text-primary-foreground">
+                          {ROLES_MAP[r] || r}
+                        </Badge>
+                      ))
+                    ) : (
+                      <Badge variant="secondary">Sin rol</Badge>
+                    )}
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Correo Personal</label>
-                <p className="font-medium text-sm flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  {selectedUsuario.emailPersonal || "-"}
-                </p>
-              </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Estado</label>
+                    <Badge className={getStatusBadgeVariant(selectedUsuario.status)}>
+                      {getStatusLabel(selectedUsuario.status)}
+                    </Badge>
+                  </div>
+                  {canChangeStatus && (
+                    <div className="flex items-center gap-2">
+                      <Select value={statusToSet} onValueChange={setStatusToSet}>
+                        <SelectTrigger className="w-40 h-9">
+                          <SelectValue placeholder="Estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {USER_STATUSES.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        onClick={() => handleChangeStatus(selectedUsuario, statusToSet || selectedUsuario.status)}
+                        disabled={statusUpdating || !statusToSet}
+                        className="gap-2"
+                      >
+                        {statusUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Cambiar
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Correo Institucional</label>
-                <p className="font-medium text-sm flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  {selectedUsuario.email}
-                </p>
-              </div>
+                <div className="grid gap-2">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Correo Personal</label>
+                  <p className="font-medium text-sm flex items-center gap-2 break-all">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    {selectedUsuario.emailPersonal || "-"}
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Carnet de Identidad</label>
-                <p className="font-medium font-mono text-sm">{selectedUsuario.cod || selectedUsuario.idSaga || "-"}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Usuario Externo</label>
-                <Badge variant="outline" className="uppercase text-xs">
-                  {selectedUsuario.tipo === "externo" ? "Sí" : "No"}
-                </Badge>
+                <div className="grid gap-2">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Correo Institucional</label>
+                  <p className="font-medium text-sm flex items-center gap-2 break-all">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    {selectedUsuario.email}
+                  </p>
+                </div>
               </div>
 
               {canChangePassword() && (
@@ -447,6 +661,165 @@ export default function ListadoUsuarioPage() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Creación */}
+      <Dialog
+        open={showCreate}
+      onOpenChange={(open) => {
+        setShowCreate(open)
+        if (!open) resetCreateForm()
+      }}
+      >
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Crear Usuario</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>Email</Label>
+                <Input value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} />
+              </div>
+              <div>
+                <Label>Contraseña</Label>
+                <div className="relative">
+                  <Input
+                    type={showCreatePassword ? "text" : "password"}
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCreatePassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showCreatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label>Nombre</Label>
+                <Input value={createForm.nombre} onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })} />
+              </div>
+              <div>
+                <Label>Apellido Paterno</Label>
+                <Input value={createForm.apPaterno} onChange={(e) => setCreateForm({ ...createForm, apPaterno: e.target.value })} />
+              </div>
+              <div>
+                <Label>Apellido Materno</Label>
+                <Input value={createForm.apMaterno} onChange={(e) => setCreateForm({ ...createForm, apMaterno: e.target.value })} />
+              </div>
+              <div>
+                <Label>CI</Label>
+                <Input value={createForm.ci} onChange={(e) => setCreateForm({ ...createForm, ci: e.target.value })} />
+              </div>
+              <div>
+                <Label>Grado (opcional)</Label>
+                <Input value={createForm.grado} onChange={(e) => setCreateForm({ ...createForm, grado: e.target.value })} />
+              </div>
+              <div>
+                <Label>Rol</Label>
+                <Select
+                  value={createForm.role}
+                  onValueChange={(val) => setCreateForm({ ...createForm, role: val })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Seleccionar rol" /></SelectTrigger>
+                  <SelectContent>
+                    {allowedCreateRoles.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {ROLES_MAP[r] || r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {createForm.role === "SECRETARIA" && (
+              <div className="grid gap-3 border rounded-lg p-3 bg-muted/30">
+                <div>
+                  <Label>Especialidades (hasta 4)</Label>
+                  <p className="text-sm text-muted-foreground">Busca y asigna las especialidades de la secretaria.</p>
+                </div>
+                <div className="relative">
+                  <Input
+                    placeholder="Buscar especialidad..."
+                    value={specSearchTerm}
+                    onChange={(e) => setSpecSearchTerm(e.target.value)}
+                  />
+                  {specLoading && (
+                    <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  )}
+                </div>
+                {specSearchTerm.length >= 2 && (
+                  <div className="border rounded-md bg-background shadow-sm max-h-40 overflow-y-auto p-2 space-y-1">
+                    {specResults.length ? (
+                      specResults.map((esp) => {
+                        const selected = createForm.especialidades.some((e) => e.idEspecialidad === esp.idEspecialidad)
+                        const disabled = selected || createForm.especialidades.length >= 4
+                        return (
+                          <button
+                            key={esp.idEspecialidad}
+                            type="button"
+                            onClick={() => handleAddEspecialidad(esp)}
+                            disabled={disabled}
+                            className={`w-full text-left rounded px-2 py-1.5 hover:bg-primary/10 ${
+                              disabled ? "opacity-60 cursor-not-allowed" : ""
+                            }`}
+                          >
+                            <div className="font-medium leading-tight">{esp.especialidad}</div>
+                            <div className="text-xs text-muted-foreground">ID: {esp.idEspecialidad}</div>
+                          </button>
+                        )
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground px-1">Sin resultados</p>
+                    )}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {createForm.especialidades.length ? (
+                    createForm.especialidades.map((esp) => (
+                      <Badge
+                        key={esp.idEspecialidad}
+                        className="bg-primary/10 text-primary border border-primary/20 gap-1"
+                      >
+                        {esp.especialidad}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEspecialidad(esp.idEspecialidad)}
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No hay especialidades seleccionadas</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  resetCreateForm()
+                  setShowCreate(false)
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateUser} disabled={creating}>
+                {creating && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Crear Usuario
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
