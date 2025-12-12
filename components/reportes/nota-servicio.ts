@@ -17,7 +17,7 @@ type NotaServicioParams = {
 const styles = `
 @page {
   size: letter;
-  margin: 3.5cm 2.5cm 3cm 3cm; 
+  margin: 0;
 }
 
 * {
@@ -27,8 +27,8 @@ const styles = `
 body {
   margin: 0;
   padding: 0;
-  font-family: "Times New Roman", serif;
-  font-size: 14px;
+  font-family: Arial, sans-serif;
+  font-size: 12pt;
   background: #e5e7eb;
   display: flex;
   justify-content: center;
@@ -40,15 +40,31 @@ body {
   width: 21.59cm; /* Carta: 8.5in */
   min-height: 27.94cm; /* Carta alto 11in */
   background: white;
-  padding: 0;
+  /* Margenes: Top 3cm, Right 2.5cm, Bottom 3cm, Left 3.5cm (Estandar) */
+  padding: 3cm 2.5cm 3cm 3.5cm;
+  margin: 20px auto;
   border: 1px solid #d1d5db;
   box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+@media print {
+  body {
+    background: white;
+    display: block;
+  }
+  .page {
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    width: auto;
+    height: auto;
+  }
 }
 
 /* ===== CITE Y FECHA ===== */
 .cite-fecha {
   text-align: right;
-  margin: 0 32px 24px 0;
+  margin: 0 0 24px 0;
 }
 
 .cite {
@@ -74,12 +90,12 @@ body {
 }
 
 .dest-left {
-  flex: 0 0 30%;
+  flex: 0 0 25%;
   font-weight: bold;
 }
 
 .dest-right {
-  flex: 0 0 70%;
+  flex: 0 0 75%;
   line-height: 1.4;
   text-align: left;
 }
@@ -113,12 +129,12 @@ body {
 
 /* ===== FIRMA ===== */
 .firma {
-  margin-top: 40px;
+  margin-top: 120px;
   text-align: center;
 }
 
 .firma-line {
-  width: 320px;
+  width: 250px;
   margin: 0 auto 8px;
   border-top: 1px solid #000;
 }
@@ -249,11 +265,12 @@ export const buildNotaServicioHtml = (p: NotaServicioParams) => {
 export const openNotaServicioWindow = (p: NotaServicioParams) => {
   if (typeof window === "undefined") return
   const html = buildNotaServicioHtml(p)
-  const w = window.open("", "_blank", "width=850,height=1100")
+  const w = window.open("", "_blank")
   if (!w) return
   w.document.write(html)
   w.document.close()
   w.focus()
+  setTimeout(() => w.print(), 500)
 }
 
 export type { NotaServicioParams }
