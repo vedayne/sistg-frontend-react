@@ -3,10 +3,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Download, X } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { FileText, Download, X, FilePlus } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
 
 const DOCUMENTOS = [
   {
@@ -105,6 +107,9 @@ export default function DocumentacionPage() {
   const [searchGestion, setSearchGestion] = useState("")
   const [searchSemestre, setSearchSemestre] = useState("")
   const [searchFase, setSearchFase] = useState("")
+  const [showNotaModal, setShowNotaModal] = useState(false)
+  const [notaFecha, setNotaFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [notaCite, setNotaCite] = useState("")
 
   const filteredDocumentos = useMemo(() => {
     return DOCUMENTOS.filter((doc) => {
@@ -127,6 +132,11 @@ export default function DocumentacionPage() {
       <div>
         <h1 className="text-3xl font-bold text-primary mb-2">Documentación</h1>
         <p className="text-muted-foreground">Acceso a documentos y plantillas del sistema de gestión de TG</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" className="gap-2" onClick={() => setShowNotaModal(true)}>
+          <FilePlus className="w-4 h-4" /> Generar Nota de Servicio
+        </Button>
       </div>
 
       <Card>
@@ -281,6 +291,37 @@ export default function DocumentacionPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Nota de Servicio */}
+      <Dialog open={showNotaModal} onOpenChange={setShowNotaModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Generar Nota de Servicio</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <Label htmlFor="cite">CITE</Label>
+              <Input id="cite" value={notaCite} onChange={(e) => setNotaCite(e.target.value)} placeholder="Ej. CITE-123/2024" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fecha">Fecha</Label>
+              <Input id="fecha" type="date" value={notaFecha} onChange={(e) => setNotaFecha(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowNotaModal(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const fechaLegible = notaFecha ? new Date(notaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" }) : ""
+                openNotaServicioWindow({ fecha: fechaLegible, cite: notaCite || "S/N" })
+                setShowNotaModal(false)
+              }}
+            >
+              Generar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

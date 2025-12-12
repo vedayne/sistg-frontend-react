@@ -208,6 +208,12 @@ export interface ProjectResponseDto {
   gestion?: { id: number; gestion: string }
   lineaInvestigacion?: { id: number; name: string }
   modalidad?: { id: number; name: string; description?: string }
+  userJefeC?: {
+    id: string
+    email: string
+    nombreCompleto?: string
+    grado?: string
+  }
 }
 
 export interface CreateProjectDto {
@@ -217,6 +223,7 @@ export interface CreateProjectDto {
   idDocTutor: number
   idDocRev1: number
   idDocRev2?: number
+  idUserJefeC?: string
   idGestion: number
   idLineaInv: number
   idModalidad: number

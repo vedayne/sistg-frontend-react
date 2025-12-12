@@ -9,6 +9,7 @@ import {
     FolderOpen,
     type LucideIcon,
     Home,
+    ShieldCheck,
 } from "lucide-react"
 
 // Define all possible roles in the system
@@ -20,8 +21,6 @@ export enum UserRole {
     ESTUDIANTE = "ESTUDIANTE",
     TUTOR = "TUTOR",
     REVISOR = "REVISOR",
-    REVISOR1 = "REVISOR1", // Assuming potential variation based on previous context, user listed REVISOR. Keeping REVISOR for match.
-    REVISOR2 = "REVISOR2",
     JEFECARRERA = "JEFECARRERA",
     DDE = "DDE",
     SECRETARIA = "SECRETARIA",
@@ -62,6 +61,13 @@ export const MENU_ITEMS: MenuItem[] = [
             UserRole.JEFECARRERA,
             UserRole.DDE,
         ],
+    },
+    {
+        id: "asignacion-roles",
+        label: "Asignar Roles",
+        icon: ShieldCheck,
+        description: "Asignar roles a usuarios",
+        roles: ADMIN_ROLES,
     },
     {
         id: "estudiantes",

@@ -15,9 +15,7 @@ import type {
   EntregaDetalle,
   StudentDocumentsResponse,
   DocumentInfo,
-  ResearchArea,
-  MemberType,
-  DocumentType,
+  Pagination,
 } from "./types"
 
 const API_BASE_URL = "https://sistg-backend.onrender.com/rtg"
@@ -312,12 +310,34 @@ export const apiClient = {
       return apiClient.request<PaginatedResponse<UserBasicInfo>>(`/users?${query.toString()}`, {})
     },
 
+    create: async (data: {
+      email: string
+      password: string
+      nombre: string
+      apPaterno: string
+      apMaterno: string
+      ci: string
+      grado?: string
+      tipo?: string
+      details?: Record<string, any>
+    }) =>
+      apiClient.request<{ data: UserBasicInfo; message?: string }>(`/users`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
     get: async (id: string) => apiClient.request<UserBasicInfo>(`/users/${id}`, {}),
 
     update: async (id: string, data: { status?: string; password?: string }) =>
       apiClient.request(`/users/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
+      }),
+
+    assignRole: async (id: string, roleId: number) =>
+      apiClient.request(`/users/${id}/roles`, {
+        method: "POST",
+        body: JSON.stringify({ roleId }),
       }),
   },
 
@@ -355,7 +375,6 @@ export const apiClient = {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
-    delete: async (id: number) => apiClient.request<{ message: string }>(`/semestres/${id}`, { method: "DELETE" }),
   },
 
   researchLines: {
@@ -372,42 +391,54 @@ export const apiClient = {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
-    delete: async (id: number) => apiClient.request<{ message: string }>(`/lineas-investigacion/${id}`, { method: "DELETE" }),
+    delete: async (id: number) =>
+      apiClient.request<{ message: string }>(`/lineas-investigacion/${id}`, {
+        method: "DELETE",
+      }),
+  },
+
+  modalidades: {
+    list: async () => apiClient.request<{ data: any[]; total: number }>("/modalidades", {}),
+    create: async (data: { name: string; description?: string }) =>
+      apiClient.request<{ message: string; data: any }>("/modalidades", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: async (id: number, data: { name?: string; description?: string }) =>
+      apiClient.request<{ message: string; data: any }>(`/modalidades/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    delete: async (id: number) =>
+      apiClient.request<{ message: string }>(`/modalidades/${id}`, {
+        method: "DELETE",
+      }),
   },
 
   researchAreas: {
-    list: async () => apiClient.request<{ data: ResearchArea[]; total: number }>("/areas-investigacion", {}),
-    create: async (name: string) => apiClient.request<{ message: string; data: ResearchArea }>("/areas-investigacion", { method: "POST", body: JSON.stringify({ name }) }),
-    update: async (id: number, name: string) => apiClient.request<{ message: string; data: ResearchArea }>(`/areas-investigacion/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
-    delete: async (id: number) => apiClient.request<{ message: string }>(`/areas-investigacion/${id}`, { method: "DELETE" }),
-  },
-
-  memberTypes: {
-    list: async () => apiClient.request<{ data: MemberType[]; total: number }>("/member-types", {}),
-    create: async (data: { name: string; description: string }) => apiClient.request<{ message: string; data: MemberType }>("/member-types", { method: "POST", body: JSON.stringify(data) }),
-    update: async (id: number, data: { name?: string; description?: string }) => apiClient.request<{ message: string; data: MemberType }>(`/member-types/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    delete: async (id: number) => apiClient.request<{ message: string }>(`/member-types/${id}`, { method: "DELETE" }),
-  },
-
-  documentTypes: {
-    list: async () => apiClient.request<{ data: DocumentType[]; total: number }>("/document-types", {}),
-    create: async (data: { name: string; description?: string }) => apiClient.request<{ message: string; data: DocumentType }>("/document-types", { method: "POST", body: JSON.stringify(data) }),
-    update: async (id: number, data: { name?: string; description?: string }) => apiClient.request<{ message: string; data: DocumentType }>(`/document-types/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    delete: async (id: number) => apiClient.request<{ message: string }>(`/document-types/${id}`, { method: "DELETE" }),
+    list: async () => apiClient.request<{ data: any[]; total: number }>("/areas-investigacion", {}),
+    create: async (name: string) =>
+      apiClient.request<{ message: string; data: any }>("/areas-investigacion", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+    update: async (id: number, name: string) =>
+      apiClient.request<{ message: string; data: any }>(`/areas-investigacion/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      }),
+    delete: async (id: number) =>
+      apiClient.request<{ message: string }>(`/areas-investigacion/${id}`, {
+        method: "DELETE",
+      }),
   },
 
   roles: {
     list: async () => apiClient.request<RoleInfo[]>("/roles", {}),
-    get: async (id: number) => apiClient.request<RoleInfo>(`/roles/${id}`, {}),
     updateStatus: async (id: number, isActive: boolean) =>
       apiClient.request<{ message: string }>(`/roles/${id}/status`, {
         method: "PATCH",
         body: JSON.stringify({ isActive }),
-      }),
-    update: async (id: number, name: string) =>
-      apiClient.request<{ message: string }>(`/roles/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name }),
       }),
   },
 
@@ -472,7 +503,21 @@ export const apiClient = {
       if (params?.limit) query.append("limit", params.limit.toString())
       if (params?.sortBy) query.append("sortBy", params.sortBy)
       if (params?.sortOrder) query.append("sortOrder", params.sortOrder)
-      return apiClient.request<PaginatedResponse<AdmEntrega>>(`/adm-entregas?${query.toString()}`, {})
+      const response = await apiClient.request<{ data: AdmEntrega[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(
+        `/adm-entregas?${query.toString()}`,
+        {},
+      )
+
+      const pagination: Pagination = {
+        page: response.meta.page,
+        limit: response.meta.limit,
+        total: response.meta.total,
+        totalPages: response.meta.totalPages,
+        hasNextPage: response.meta.page < response.meta.totalPages,
+        hasPreviousPage: response.meta.page > 1,
+      }
+
+      return { data: response.data, pagination }
     },
     filter: async (params: {
       idDocente?: number
