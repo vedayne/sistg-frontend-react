@@ -20,6 +20,7 @@ import ListadoUsuarioPage from "@/components/pages/listado-usuario-page"
 import NombramientoTutorPage from "@/components/pages/nombramiento-tutor-page"
 import RegistroTemarioPage from "@/components/pages/registro-temario-page"
 import EstudiantesPage from "@/components/pages/estudiantes-page"
+import AsignacionRolesPage from "@/components/pages/asignacion-roles-page"
 import { Moon, Sun, LogOut, Home } from "lucide-react"
 
 export default function DashboardLayout() {
@@ -65,6 +66,8 @@ export default function DashboardLayout() {
         return <DocumentacionPage />
       case "listado-usuario":
         return <ListadoUsuarioPage />
+      case "asignacion-roles":
+        return <AsignacionRolesPage />
       case "manual":
         return <ManualPage />
       case "flujograma":
