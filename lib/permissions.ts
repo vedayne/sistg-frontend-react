@@ -11,22 +11,25 @@ import {
     Home,
     ShieldCheck,
 } from "lucide-react"
+import { getAllowedPageIds, hasAccessToPage } from "./role-permissions-config"
+import type { Role } from "./types"
 
 // Define all possible roles in the system
-// STRICTLY matching user provided identifiers
+// ACTUALIZADO: Basado en los roles reales del backend (2025-12-14)
 export enum UserRole {
-    ADMIN = "ADMIN",
-    UTIC = "UTIC",
-    DOCENTETG = "DOCENTETG",
-    ESTUDIANTE = "ESTUDIANTE",
-    TUTOR = "TUTOR",
-    REVISOR = "REVISOR",
-    JEFECARRERA = "JEFECARRERA",
-    DDE = "DDE",
-    SECRETARIA = "SECRETARIA",
-    INVITADO = "INVITADO",
-    // Legacy support or if backend sends variations, mapped in getAuthorizedMenuItems?
-    // User explicitly said: identificador: ADMIN, ESTUDIANTE, etc.
+    ADMIN = "ADMIN",                // ID 1
+    DOCENTETG = "DOCENTETG",        // ID 2
+    ESTUDIANTE = "ESTUDIANTE",      // ID 3
+    TUTOR = "TUTOR",                // ID 4
+    REVISOR = "REVISOR",            // ID 5
+    JEFECARRERA = "JEFECARRERA",    // ID 6
+    DDE = "DDE",                    // ID 7
+    SECRETARIA = "SECRETARIA",      // ID 8
+    INVITADO = "INVITADO",          // ID 9
+    // NOTA: REVISOR1 y REVISOR2 no existen como roles separados en el backend
+    // Se manejan a nivel de lógica de negocio usando el rol REVISOR (ID 5)
+    REVISOR1 = "REVISOR1",          // Alias para lógica interna
+    REVISOR2 = "REVISOR2",          // Alias para lógica interna
 }
 
 export interface MenuItem {
@@ -39,7 +42,7 @@ export interface MenuItem {
 
 // Helper to group roles
 const ALL_ROLES = Object.values(UserRole)
-const ADMIN_ROLES = [UserRole.ADMIN, UserRole.UTIC]
+const ADMIN_ROLES = [UserRole.ADMIN]  // Solo ADMIN tiene acceso completo
 
 // All available menu items with their allowed roles based on user request
 export const MENU_ITEMS: MenuItem[] = [
@@ -200,8 +203,30 @@ export const MENU_ITEMS: MenuItem[] = [
 
 /**
  * Returns the list of menu items authorized for a given list of user roles.
+ * NUEVO: Ahora usa IDs de roles en lugar de nombres.
+ *
+ * @param roles - Array de objetos Role con {id, name, description} desde la API
+ * @returns Array de MenuItem que el usuario puede acceder
  */
-export function getAuthorizedMenuItems(userRoles: string[] = []): MenuItem[] {
+export function getAuthorizedMenuItems(roles: Role[] = []): MenuItem[] {
+    // Extraemos los IDs de los roles del usuario
+    const roleIds = roles.map(r => r.id)
+
+    // Obtenemos todas las páginas permitidas basadas en los IDs de roles
+    // Esta función combina automáticamente permisos de múltiples roles
+    const allowedPageIds = getAllowedPageIds(roleIds)
+
+    // Filtramos los items del menú que están en la lista de páginas permitidas
+    return MENU_ITEMS.filter(item => allowedPageIds.includes(item.id))
+}
+
+/**
+ * FUNCIÓN LEGACY: Mantiene compatibilidad con código existente que usa nombres de roles.
+ * Se recomienda usar getAuthorizedMenuItems(roles) con objetos Role completos.
+ *
+ * @deprecated Usa getAuthorizedMenuItems(roles: Role[]) en su lugar
+ */
+export function getAuthorizedMenuItemsByName(userRoles: string[] = []): MenuItem[] {
     // Normalize checking: The backend sends strings like "ADMIN", "ESTUDIANTE".
     // We ensure we match them against our enum values.
 
@@ -217,8 +242,26 @@ export function getAuthorizedMenuItems(userRoles: string[] = []): MenuItem[] {
 
 /**
  * Checks if a user has permission to access a specific page/module ID
+ * NUEVO: Ahora usa IDs de roles en lugar de nombres.
+ *
+ * @param pageId - ID de la página a verificar
+ * @param roles - Array de objetos Role con {id, name, description} desde la API
+ * @returns true si el usuario tiene acceso, false en caso contrario
  */
-export function hasAccess(pageId: string, userRoles: string[] = []): boolean {
+export function hasAccess(pageId: string, roles: Role[] = []): boolean {
+    // Extraemos los IDs de los roles
+    const roleIds = roles.map(r => r.id)
+
+    // Usamos la función del nuevo sistema de permisos
+    return hasAccessToPage(pageId, roleIds)
+}
+
+/**
+ * FUNCIÓN LEGACY: Mantiene compatibilidad con código existente que usa nombres de roles.
+ *
+ * @deprecated Usa hasAccess(pageId, roles: Role[]) en su lugar
+ */
+export function hasAccessByName(pageId: string, userRoles: string[] = []): boolean {
     const item = MENU_ITEMS.find((i) => i.id === pageId)
     if (!item) return false
     const userRoleSet = new Set(userRoles.map(r => r.toUpperCase()));

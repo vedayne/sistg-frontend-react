@@ -1,25 +1,57 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { getAuthorizedMenuItems } from "@/lib/permissions"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ChevronUp, Shield, Menu, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronUp, Shield, ChevronLeft, ChevronRight } from "lucide-react"
+import { getPermissionsDebugInfo } from "@/lib/role-permissions-config"
 
-interface SidebarProps {
-  currentPage: string
-  onPageChange: (page: string) => void
-}
-
-export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
+export default function Sidebar() {
   const { user } = useAuth()
+  const router = useRouter()
+  const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(false)
 
-  // Extract role names from user object
-  const userRoles = user?.roles?.map((r) => r.name) || []
-  const menuItems = getAuthorizedMenuItems(userRoles)
+  // Obtenemos los roles completos del usuario (con id, name, description)
   const rolesList = user?.roles || []
+
+  // NUEVO: Usamos el sistema de permisos basado en IDs de roles
+  // Esto combina automáticamente los permisos de todos los roles del usuario
+  const menuItems = getAuthorizedMenuItems(rolesList)
+
+  // Detectar la página actual desde la URL
+  const currentPage = pathname?.replace("/", "") || "perfil"
+
+  // Debug: Mostrar información de permisos cuando el usuario tiene roles
+  useEffect(() => {
+    if (rolesList.length > 0) {
+      const roleIds = rolesList.map(r => r.id)
+      const debugInfo = getPermissionsDebugInfo(roleIds)
+
+      console.log("========================================")
+      console.log("SISTEMA DE PERMISOS - INFORMACIÓN DE DEBUG")
+      console.log("========================================")
+      console.log("Usuario:", user?.persona?.nombreCompleto || user?.email)
+      console.log("Roles del usuario:", rolesList.map(r => `${r.name} (ID: ${r.id})`).join(", "))
+      console.log("\nDETALLE DE PERMISOS POR ROL:")
+      debugInfo.permissionsByRole.forEach(rolePerms => {
+        const roleName = rolesList.find(r => r.id === rolePerms.roleId)?.name || "Desconocido"
+        console.log(`\n  Rol: ${roleName} (ID: ${rolePerms.roleId})`)
+        console.log(`  Páginas permitidas: ${rolePerms.pageCount}`)
+        console.log(`  Lista: ${rolePerms.pages.join(", ")}`)
+      })
+      console.log("\nPERMISOS COMBINADOS:")
+      console.log(`  Total de roles: ${debugInfo.totalRoles}`)
+      console.log(`  Total de páginas únicas: ${debugInfo.totalPages}`)
+      console.log(`  Páginas permitidas: ${debugInfo.allowedPages.join(", ")}`)
+      console.log("========================================")
+      console.log("Ítems de menú visibles:", menuItems.map(item => item.id).join(", "))
+      console.log("========================================")
+    }
+  }, [user, rolesList, menuItems])
 
   return (
     <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-primary text-primary-foreground flex flex-col overflow-hidden border-r dark:border-slate-800 transition-all duration-300`}>
@@ -39,7 +71,7 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
           </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 hover:bg-primary/40 rounded-lg transition-colors flex-shrink-0"
+            className="p-2 hover:bg-primary/40 rounded-lg transition-colors shrink-0"
             title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
           >
             {isCollapsed ? (
@@ -55,13 +87,14 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-secondary scrollbar-track-primary/20">
         {menuItems.map((item) => {
           const Icon = item.icon
+          const isActive = currentPage === item.id
           return (
             <button
               key={item.id}
-              onClick={() => onPageChange(item.id)}
+              onClick={() => router.push(`/${item.id}`)}
               className={`w-full text-left rounded-lg transition-all font-medium flex items-center ${
                 isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3 gap-3'
-              } ${currentPage === item.id
+              } ${isActive
                 ? "bg-secondary text-secondary-foreground shadow-md"
                 : "hover:bg-primary/80 text-primary-foreground/90 hover:text-primary-foreground"
                 }`}
