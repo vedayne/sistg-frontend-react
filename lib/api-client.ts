@@ -598,9 +598,10 @@ export const apiClient = {
     getPending: async () => apiClient.request<{ ok: boolean; data: EntregaDetalle[] }>("/entregas/pendientes", {}),
     getBySchedule: async (idAdmEntrega: number) =>
       apiClient.request<{ ok: boolean; data: EntregaDetalle[] }>(`/entregas/cronograma/${idAdmEntrega}`, {}),
-    review: async (idEntrega: number, archPdf: File) => {
+    review: async (idEntrega: number, archPdf: File, observaciones?: string) => {
       const formData = new FormData()
       formData.append("archPdf", archPdf)
+      if (observaciones) formData.append("observaciones", observaciones)
       return apiClient.request<{ ok: boolean; message: string; data: EntregaDetalle }>(
         `/entregas/${idEntrega}/revision`,
         {
