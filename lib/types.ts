@@ -55,6 +55,7 @@ export interface User {
   roles: Role[]
   persona: Persona
   academico: AcademicoEstudiante
+  imageUrl?: string | null
   fotoPerfil?: {
     id: string
     remotepath: string

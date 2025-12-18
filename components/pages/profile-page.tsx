@@ -39,10 +39,14 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    if (user?.fotoPerfil?.remotepath) {
+    if (user?.imageUrl) {
+      setProfileImage(user.imageUrl)
+    } else if (user?.fotoPerfil?.remotepath) {
       setProfileImage(user.fotoPerfil.remotepath)
+    } else {
+      setProfileImage(null)
     }
-  }, [user?.fotoPerfil])
+  }, [user?.imageUrl, user?.fotoPerfil])
 
   useEffect(() => {
     if (activeTab === "sesiones") {

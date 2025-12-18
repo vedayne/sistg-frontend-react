@@ -18,7 +18,8 @@ import type {
   Pagination,
 } from "./types"
 
-const API_BASE_URL = "https://sistg-backend.onrender.com/rtg"
+// const API_BASE_URL = "https://sistg-backend.onrender.com/rtg"
+const API_BASE_URL = "http://localhost:4000/rtg"
 
 interface ApiResponse<T> {
   data: T

@@ -158,7 +158,6 @@ export default function DefensasPage() {
                   <th className="text-left py-3 px-4 font-bold">Estudiante</th>
                   <th className="text-left py-3 px-4 font-bold">Nota</th>
                   <th className="text-left py-3 px-4 font-bold">Tribunal</th>
-                  <th className="text-left py-3 px-4 font-bold">Observación</th>
                   <th className="text-left py-3 px-4 font-bold">Acción</th>
                 </tr>
               </thead>

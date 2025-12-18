@@ -4,6 +4,11 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import type { User } from "@/lib/types"
 import { apiClient } from "@/lib/api-client"
 
+const normalizeProfile = (profileData: any): User => ({
+  ...profileData,
+  imageUrl: profileData?.imageUrl ?? profileData?.fotoPerfil?.remotepath ?? null,
+})
+
 interface Session {
   id: string
   userId: string
@@ -69,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const profileResponse = await apiClient.profile.get()
           const profile = (profileResponse as any).data || profileResponse
           console.log("[v0] Perfil obtenido:", profile)
-          setUser(profile)
+          setUser(normalizeProfile(profile))
         }
       } catch (err) {
         console.error("[v0] Error loading profile:", err)
@@ -102,11 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = (profileResponse as any).data || profileResponse
       console.log("[v0] Perfil obtenido:", profile)
 
-      const profileStatus = profile.status || "ACTIVE"
+      const normalizedProfile = normalizeProfile(profile)
+
+      const profileStatus = normalizedProfile.status || "ACTIVE"
       console.log("[v0] Status del usuario:", profileStatus)
 
       const userData = {
-        ...profile,
+        ...normalizedProfile,
         mustChangePassword: profileStatus === "MUST_CHANGE_PASSWORD",
       }
 
@@ -156,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[v0] Refrescando perfil...")
       const profileResponse = await apiClient.profile.get()
       const profile = (profileResponse as any).data || profileResponse
-      setUser(profile)
+      setUser(normalizeProfile(profile))
     } catch (err) {
       console.error("[v0] Error refreshing profile:", err)
     }
@@ -207,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user) {
           setUser({
             ...user,
+            imageUrl: response.archivo.remotepath || null,
             fotoPerfil: {
               id: response.archivo.id.toString(),
               remotepath: response.archivo.remotepath,
