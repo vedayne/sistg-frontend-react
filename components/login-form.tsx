@@ -115,7 +115,7 @@ function ResumeSessionModal({
   onNewSession: () => void
 }) {
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <Dialog open={isOpen} onOpenChange={() => { }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-primary">Sesión Activa Detectada</DialogTitle>
@@ -218,7 +218,7 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <button onClick={onBackToHome} className="flex items-center gap-3 hover:opacity-80">
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-primary/30">
-              <img src={"/emi_logo_png.webp"} alt="Logo EMI" className="w-8 h-8" />
+              <img src={"/emi_logo_new.png"} alt="Logo EMI" className="w-8 h-8" />
             </div>
             <div className="text-left">
               <h1 className="font-bold text-xl text-primary leading-tight">SISTG</h1>
