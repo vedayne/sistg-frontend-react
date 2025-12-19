@@ -36,15 +36,18 @@ export interface Persona {
 
 export interface AcademicoEstudiante {
   idSaga: number
-  codAlumno: string
+  codAlumno?: string
+  codDocente?: string
   idEspecialidad: string
   especialidad: string
   idUnidadAcademica: string
   unidadAcademica: string
   nivelAcad: string
-  fuerza: "Civil" | "Militar"
-  inscrito: number
-  semestreActual: string | null
+  fuerza?: "Civil" | "Militar"
+  inscrito?: number
+  semestreActual?: string | { id: number; name: string; code: string } | null
+  profesion?: string
+  grado?: string
 }
 
 export interface User {
@@ -53,8 +56,13 @@ export interface User {
   status: "ACTIVE" | "INACTIVE"
   lastLoginAt: string | null
   roles: Role[]
-  persona: Persona
-  academico: AcademicoEstudiante
+  persona?: Persona
+  academico?: AcademicoEstudiante
+  docenteId?: number | null
+  docente?: {
+    id: number
+    idSaga?: number
+  }
   imageUrl?: string | null
   fotoPerfil?: {
     id: string
@@ -95,6 +103,14 @@ export interface DocenteBasicInfo {
   nombreCompleto: string
   email: string
   especialidad?: string
+  usuario?: {
+    email: string
+    usuarioDetalles?: {
+      nombre: string
+      apPaterno: string
+      apMaterno: string
+    }
+  }
 }
 
 export type UserStatus = "ACTIVE" | "INACTIVE" | "BLOCKED" | "MUST_CHANGE_PASSWORD"
@@ -250,17 +266,26 @@ export interface AdmEntrega {
   title: string
   descripcion: string | null
   idDocente: number
+  docente?: DocenteBasicInfo
   idGestion: number
+  gestion?: Gestion
   idEspecialidad: number
   especialidad?: string
   idSemestre: number
+  semestre?: Semester
   startAt: string
   endAt: string
   isActive: boolean
   createdAt: string
-  estudiantes?: EstudianteBasicInfo[]
+  estudiantes?: {
+    id: number
+    idEstudiante: number
+    estudiante?: EstudianteBasicInfo
+  }[]
+  entregas?: EntregaDetalle[]
   _count?: {
     entregas: number
+    estudiantes?: number
   }
 }
 
@@ -364,4 +389,41 @@ export interface StudentDocumentsResponse {
   tituloProyecto: string
   totalDocumentos: number
   documentosPorTipo: DocumentTypeGroup[]
+}
+
+export interface DocumentTypeSummary {
+  tipoDocumentoId: number
+  tipoDocumento: string
+  descripcion?: string
+  cantidadArchivos: number
+}
+
+export interface DocumentTypeSummaryResponse {
+  totalTipos: number
+  totalArchivos: number
+  tipos: DocumentTypeSummary[]
+}
+
+export interface DocumentFileRecord {
+  id: number
+  originalName: string
+  remotepath: string
+  mimetype: string
+  size: number
+  createdAt: string
+  usuario?: {
+    id: string
+    nombreCompleto: string
+  }
+  downloadUrl: string
+}
+
+export interface FilesByTypeResponse {
+  tipoDocumento: {
+    id: number
+    nombre: string
+    descripcion?: string
+  }
+  totalArchivos: number
+  archivos: DocumentFileRecord[]
 }

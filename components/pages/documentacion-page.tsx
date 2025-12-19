@@ -3,148 +3,100 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Download, X, FilePlus } from "lucide-react"
+import { Download, FilePlus, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
-import { openActaAprobacionWindow } from "@/components/reportes/acta-aprobacion"
-import { openCartaInvitacionWindow } from "@/components/reportes/carta-invitacion-tutor"
-import { openCartaAceptacionWindow } from "@/components/reportes/carta-aceptacion-tutor"
 import { useToast } from "@/components/ui/use-toast"
-
-const DOCUMENTOS = [
-  {
-    id: 1,
-    titulo: "Carta de Invitación para Tutoría",
-    descripcion: "Formulario para solicitar tutoría en trabajos de grado",
-    fecha: "2024-01-10",
-    tipo: "Formulario",
-    estudiante: "Miguel Ángel Lipa",
-    gestion: "2024",
-    semestre: "6",
-    fase: "Perfil",
-  },
-  {
-    id: 2,
-    titulo: "Carta de Aceptación para Tutoría",
-    descripcion: "Documento de aceptación de tutoría por parte del tutor",
-    fecha: "2024-01-15",
-    tipo: "Certificado",
-    estudiante: "María López",
-    gestion: "2024",
-    semestre: "6",
-    fase: "Marco Teórico",
-  },
-  {
-    id: 3,
-    titulo: "Bitácora de Avances",
-    descripcion: "Registro de avances y reuniones durante el TG",
-    fecha: "2024-01-20",
-    tipo: "Registro",
-    estudiante: "Juan Pérez",
-    gestion: "2024",
-    semestre: "7",
-    fase: "Marco Práctico",
-  },
-  {
-    id: 4,
-    titulo: "Aval de Tutoría",
-    descripcion: "Documento de aval de conclusión de tutoría",
-    fecha: "2024-02-01",
-    tipo: "Certificado",
-    estudiante: "Miguel Ángel Lipa",
-    gestion: "2024",
-    semestre: "7",
-    fase: "Primer Borrador",
-  },
-  {
-    id: 5,
-    titulo: "Artículo Científico Template",
-    descripcion: "Plantilla para redacción de artículos científicos",
-    fecha: "2024-02-10",
-    tipo: "Plantilla",
-    estudiante: "Ana García",
-    gestion: "2024",
-    semestre: "8",
-    fase: "Borrador Final",
-  },
-  {
-    id: 6,
-    titulo: "Registro SENAPI",
-    descripcion: "Formulario para registro de derechos intelectuales",
-    fecha: "2024-02-15",
-    tipo: "Registro",
-    estudiante: "María López",
-    gestion: "2024",
-    semestre: "8",
-    fase: "Borrador Final",
-  },
-  {
-    id: 7,
-    titulo: "Acta de Defensa",
-    descripcion: "Acta oficial de realización de defensa de TG",
-    fecha: "2024-03-01",
-    tipo: "Acta",
-    estudiante: "Miguel Ángel Lipa",
-    gestion: "2024",
-    semestre: "8",
-    fase: "Defensa",
-  },
-  {
-    id: 8,
-    titulo: "Nota de Servicio",
-    descripcion: "Comunicado interno sobre procesos de TG",
-    fecha: "2024-03-05",
-    tipo: "Comunicado",
-    estudiante: "Juan Pérez",
-    gestion: "2024",
-    semestre: "7",
-    fase: "Primer Borrador",
-  },
-]
+import { apiClient } from "@/lib/api-client"
+import type { DocumentTypeSummaryResponse, DocumentTypeSummary, DocumentFileRecord } from "@/lib/types"
 
 export default function DocumentacionPage() {
   const { toast } = useToast()
-  const [selectedDoc, setSelectedDoc] = useState<(typeof DOCUMENTOS)[0] | null>(null)
-  const [searchEstudiante, setSearchEstudiante] = useState("")
-  const [searchGestion, setSearchGestion] = useState("")
-  const [searchSemestre, setSearchSemestre] = useState("")
-  const [searchFase, setSearchFase] = useState("")
+  const [summary, setSummary] = useState<DocumentTypeSummaryResponse | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState<DocumentTypeSummary | null>(null)
+  const [files, setFiles] = useState<DocumentFileRecord[]>([])
+  const [filesLoading, setFilesLoading] = useState(false)
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [notaForm, setNotaForm] = useState({
+    idProyecto: "",
     cite: "",
     fecha: new Date().toISOString().slice(0, 10),
-    tituloProyecto: "",
-    postulante: "",
-    tutor: "",
-    revisor1: "",
-    revisor2: "",
-    docenteTG: "",
     fase: "",
-    jefeCarrera: "",
-    gradoJefe: "",
   })
   const [showActaModal, setShowActaModal] = useState(false)
   const [actaForm, setActaForm] = useState({
+    idProyecto: "",
     cite: "",
     ciudad: "LA PAZ",
     hora: "12:00",
-    fechaLarga: "18 de Octubre de 2024",
-    postulante: "",
-    tituloProyecto: "",
-    revisor1: "",
-    revisor2: "",
-    tutor: "",
-    docenteTG: "",
-    jefeCarrera: "",
-    gradoJefe: "",
+    fecha: new Date().toISOString().slice(0, 10),
     fase: "BORRADOR FINAL",
   })
   const [showCartaInvModal, setShowCartaInvModal] = useState(false)
   const [showCartaAceModal, setShowCartaAceModal] = useState(false)
-  const [cartaFecha, setCartaFecha] = useState(new Date().toISOString().slice(0, 10))
+  const [cartaInvForm, setCartaInvForm] = useState({
+    idProyecto: "",
+    cite: "",
+    fecha: new Date().toISOString().slice(0, 10),
+    destinatarioNombre: "",
+    destinatarioCargo: "",
+  })
+  const [cartaAceForm, setCartaAceForm] = useState({
+    idProyecto: "",
+    cite: "",
+    fecha: new Date().toISOString().slice(0, 10),
+  })
+  const [notaLoading, setNotaLoading] = useState(false)
+  const [actaLoading, setActaLoading] = useState(false)
+  const [cartaInvLoading, setCartaInvLoading] = useState(false)
+  const [cartaAceLoading, setCartaAceLoading] = useState(false)
+
+  const downloadArchivo = async (archivoId: number, filename?: string) => {
+    const blob = await apiClient.documents.download(archivoId)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename || `reporte-${archivoId}.pdf`
+    a.target = "_blank"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      setSummaryLoading(true)
+      setSummaryError(null)
+      try {
+        const resp = await apiClient.documents.getTypesSummary()
+        setSummary(resp.data)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "No se pudo cargar los tipos de documentos"
+        setSummaryError(msg)
+      } finally {
+        setSummaryLoading(false)
+      }
+    }
+    fetchSummary()
+  }, [])
+
+  const fetchFilesByType = async (type: DocumentTypeSummary) => {
+    setSelectedType(type)
+    setFiles([])
+    setFilesLoading(true)
+    try {
+      const resp = await apiClient.documents.getFilesByType(type.tipoDocumentoId)
+      setFiles(resp.data.archivos || [])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudieron cargar los archivos de este tipo"
+      toast({ variant: "destructive", title: "Error", description: msg })
+    } finally {
+      setFilesLoading(false)
+    }
+  }
 
   const filteredDocumentos = useMemo(() => {
     return DOCUMENTOS.filter((doc) => {
@@ -185,158 +137,117 @@ export default function DocumentacionPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filtros de Búsqueda</CardTitle>
+          <CardTitle className="text-lg">Tipos de documentos</CardTitle>
+          <CardDescription>
+            Resumen de archivos generados/cargados en el sistema y acceso a su historial.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Estudiante</label>
-              <Input
-                placeholder="Buscar estudiante..."
-                value={searchEstudiante}
-                onChange={(e) => setSearchEstudiante(e.target.value)}
-              />
+          {summaryError && (
+            <div className="bg-red-50 text-red-700 border border-red-200 rounded-md p-3 text-sm mb-4">
+              {summaryError}
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Gestión</label>
-              <select
-                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                value={searchGestion}
-                onChange={(e) => setSearchGestion(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {gestiones.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
+          )}
+          {summaryLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Semestre</label>
-              <select
-                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                value={searchSemestre}
-                onChange={(e) => setSearchSemestre(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {semestres.map((s) => (
-                  <option key={s} value={s}>
-                    Semestre {s}
-                  </option>
-                ))}
-              </select>
+          ) : summary && summary.tipos.length > 0 ? (
+            <div className="space-y-2 mb-4 text-sm text-muted-foreground">
+              <span>Total tipos: {summary.totalTipos}</span> • <span>Total archivos: {summary.totalArchivos}</span>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Fase</label>
-              <select
-                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background"
-                value={searchFase}
-                onChange={(e) => setSearchFase(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {fases.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
+          ) : (
+            <div className="text-muted-foreground text-sm">No hay tipos de documentos disponibles.</div>
+          )}
+
+          {summary && summary.tipos.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {summary.tipos.map((tipo) => (
+                <Card
+                  key={tipo.tipoDocumentoId}
+                  className="hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-primary"
+                  onClick={() => fetchFilesByType(tipo)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <CardTitle className="text-base text-foreground">{tipo.tipoDocumento}</CardTitle>
+                        <CardDescription className="text-xs mt-1">
+                          {tipo.descripcion || "Sin descripción"}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {tipo.cantidadArchivos} archivos
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
             </div>
-            <div className="flex items-end">
-              <Button
-                onClick={() => {
-                  setSearchEstudiante("")
-                  setSearchGestion("")
-                  setSearchSemestre("")
-                  setSearchFase("")
-                }}
-                variant="outline"
-                className="w-full"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Limpiar
-              </Button>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Documentos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredDocumentos.length > 0 ? (
-          filteredDocumentos.map((doc) => (
-            <Card
-              key={doc.id}
-              className="hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-primary"
-              onClick={() => setSelectedDoc(doc)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <CardTitle className="text-base text-foreground">{doc.titulo}</CardTitle>
-                    <CardDescription className="text-xs mt-1">{doc.fecha}</CardDescription>
-                  </div>
-                  <FileText className="w-5 h-5 text-primary flex-shrink-0" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">{doc.descripcion}</p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className="text-xs">
-                    {doc.tipo}
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-cyan-600 hover:text-cyan-700 h-8"
-                    onClick={() => setSelectedDoc(doc)}
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-8 text-muted-foreground">No se encontraron documentos</div>
-        )}
-      </div>
-
-      {/* Modal de detalles */}
-      <Dialog open={!!selectedDoc} onOpenChange={() => setSelectedDoc(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-primary">{selectedDoc?.titulo}</DialogTitle>
-          </DialogHeader>
-          {selectedDoc && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Tipo</p>
-                <Badge className="bg-secondary text-secondary-foreground">{selectedDoc.tipo}</Badge>
+      {selectedType && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-primary">
+              Archivos: {selectedType.tipoDocumento} ({selectedType.cantidadArchivos})
+            </CardTitle>
+            <CardDescription>Historial de archivos registrados para este tipo.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {filesLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Descripción</p>
-                <p className="text-foreground">{selectedDoc.descripcion}</p>
+            ) : files.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay archivos registrados para este tipo.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40">
+                      <th className="text-left py-2 px-2 font-semibold">Archivo</th>
+                      <th className="text-left py-2 px-2 font-semibold">Usuario</th>
+                      <th className="text-left py-2 px-2 font-semibold">Fecha</th>
+                      <th className="text-left py-2 px-2 font-semibold">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {files.map((file) => (
+                      <tr key={file.id} className="border-b last:border-0">
+                        <td className="py-2 px-2">{file.originalName}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{file.usuario?.nombreCompleto || "N/A"}</td>
+                        <td className="py-2 px-2 text-muted-foreground">
+                          {new Date(file.createdAt).toLocaleString("es-BO", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="py-2 px-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-primary"
+                            onClick={() => downloadArchivo(file.id, file.originalName)}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            Descargar
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Fecha de Creación</p>
-                <p className="text-foreground">{selectedDoc.fecha}</p>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={() => setSelectedDoc(null)}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-white"
-                >
-                  Descargar
-                </Button>
-                <Button onClick={() => setSelectedDoc(null)} variant="outline" className="flex-1">
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal Nota de Servicio */}
       <Dialog open={showNotaModal} onOpenChange={setShowNotaModal}>
@@ -345,6 +256,15 @@ export default function DocumentacionPage() {
             <DialogTitle className="text-primary">Generar Nota de Servicio</DialogTitle>
           </DialogHeader>
           <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={notaForm.idProyecto}
+                onChange={(e) => setNotaForm({ ...notaForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
             <div className="grid gap-2">
               <Label>CITE</Label>
               <Input
@@ -361,140 +281,214 @@ export default function DocumentacionPage() {
                 onChange={(e) => setNotaForm({ ...notaForm, fecha: e.target.value })}
               />
             </div>
-            <div className="grid gap-2 md:col-span-2">
-              <Label>Título de Proyecto</Label>
+            <div className="grid gap-2">
+              <Label>Fase (opcional)</Label>
               <Input
-                value={notaForm.tituloProyecto}
-                onChange={(e) => setNotaForm({ ...notaForm, tituloProyecto: e.target.value })}
-                placeholder="Título del proyecto"
+                value={notaForm.fase}
+                onChange={(e) => setNotaForm({ ...notaForm, fase: e.target.value })}
+                placeholder="Ej. BORRADOR FINAL"
               />
             </div>
-            <div className="grid gap-2">
-              <Label>Postulante</Label>
-              <Input value={notaForm.postulante} onChange={(e) => setNotaForm({ ...notaForm, postulante: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Tutor</Label>
-              <Input value={notaForm.tutor} onChange={(e) => setNotaForm({ ...notaForm, tutor: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Vocal Revisor (Rev 1)</Label>
-              <Input value={notaForm.revisor1} onChange={(e) => setNotaForm({ ...notaForm, revisor1: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Vocal Revisor 2 (opcional)</Label>
-              <Input value={notaForm.revisor2} onChange={(e) => setNotaForm({ ...notaForm, revisor2: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Docente TG</Label>
-              <Input value={notaForm.docenteTG} onChange={(e) => setNotaForm({ ...notaForm, docenteTG: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Fase</Label>
-              <Input value={notaForm.fase} onChange={(e) => setNotaForm({ ...notaForm, fase: e.target.value })} placeholder="Ej. BORRADOR FINAL" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Jefe de Carrera</Label>
-              <Input value={notaForm.jefeCarrera} onChange={(e) => setNotaForm({ ...notaForm, jefeCarrera: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Grado Jefe</Label>
-              <Input value={notaForm.gradoJefe} onChange={(e) => setNotaForm({ ...notaForm, gradoJefe: e.target.value })} />
+            <div className="col-span-full text-xs text-muted-foreground">
+              Los nombres de postulante, tutor y revisores se obtienen del proyecto en el backend.
             </div>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowNotaModal(false)}>Cancelar</Button>
             <Button
-              onClick={() => {
-                if (!notaForm.postulante || !notaForm.tutor || !notaForm.revisor1 || !notaForm.docenteTG || !notaForm.tituloProyecto) {
-                  toast({ variant: "destructive", title: "Completa los campos obligatorios" })
+              disabled={notaLoading}
+              onClick={async () => {
+                if (!notaForm.idProyecto || !notaForm.cite || !notaForm.fecha) {
+                  toast({ variant: "destructive", title: "ID de proyecto, CITE y fecha son obligatorios" })
                   return
                 }
-                const fechaLegible = notaForm.fecha
-                  ? new Date(notaForm.fecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
-                  : ""
-                openNotaServicioWindow({
-                  fecha: fechaLegible,
-                  cite: notaForm.cite || "S/N",
-                  tituloProyecto: notaForm.tituloProyecto,
-                  postulante: notaForm.postulante,
-                  tutor: notaForm.tutor,
-                  revisor1: notaForm.revisor1,
-                  revisor2: notaForm.revisor2,
-                  docenteTG: notaForm.docenteTG,
-                  fase: notaForm.fase,
-                  jefeCarrera: notaForm.jefeCarrera,
-                  gradoJefe: notaForm.gradoJefe,
-                })
-                setShowNotaModal(false)
+                try {
+                  setNotaLoading(true)
+                  const fechaLegible = new Date(notaForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.notaServicio({
+                    idProyecto: Number(notaForm.idProyecto),
+                    cite: notaForm.cite,
+                    fecha: fechaLegible,
+                    fase: notaForm.fase || undefined,
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Nota generada", description: "Se generó y descargó el PDF desde el backend." })
+                  setShowNotaModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Nota de Servicio"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setNotaLoading(false)
+                }
               }}
             >
+              {notaLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Carta de Invitación (Simple Mock) */}
+      {/* Modal Carta de Invitación (Tutor) */}
       <Dialog open={showCartaInvModal} onOpenChange={setShowCartaInvModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Carta Invitación (Ejemplo)</DialogTitle>
+            <DialogTitle>Carta Invitación a Tutor</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Fecha</Label>
-              <Input type="date" value={cartaFecha} onChange={e => setCartaFecha(e.target.value)} />
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={cartaInvForm.idProyecto}
+                onChange={(e) => setCartaInvForm({ ...cartaInvForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
             </div>
-            <p className="text-sm text-muted-foreground">Generará una carta con datos de ejemplo.</p>
+            <div className="grid gap-2">
+              <Label>CITE (opcional)</Label>
+              <Input value={cartaInvForm.cite} onChange={(e) => setCartaInvForm({ ...cartaInvForm, cite: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={cartaInvForm.fecha}
+                onChange={(e) => setCartaInvForm({ ...cartaInvForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Destinatario (nombre)</Label>
+              <Input
+                value={cartaInvForm.destinatarioNombre}
+                onChange={(e) => setCartaInvForm({ ...cartaInvForm, destinatarioNombre: e.target.value })}
+                placeholder="Nombre del tutor"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Destinatario (cargo)</Label>
+              <Input
+                value={cartaInvForm.destinatarioCargo}
+                onChange={(e) => setCartaInvForm({ ...cartaInvForm, destinatarioCargo: e.target.value })}
+                placeholder="DOCENTE DE LA EMI"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El resto de datos (estudiante, proyecto, semestre) se obtienen del backend.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCartaInvModal(false)}>Cancelar</Button>
-            <Button onClick={() => {
-              const fechaLegible = new Date(cartaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
-              openCartaInvitacionWindow({
-                ciudadFecha: `La Paz, ${fechaLegible}`,
-                destinatarioNombre: "ING. EJEMPLO TUTOR",
-                destinatarioCargo: "DOCENTE DE LA EMI",
-                estudianteNombre: "ESTUDIANTE EJEMPLO",
-                estudianteCarrera: "Ingeniería de Sistemas",
-                estudianteSemestre: "Octavo",
-                tituloProyecto: "SISTEMA DE EJEMPLO PARA GESTION ACADEMICA"
-              })
-              setShowCartaInvModal(false)
-            }}>Generar</Button>
+            <Button
+              disabled={cartaInvLoading}
+              onClick={async () => {
+                if (!cartaInvForm.idProyecto || !cartaInvForm.fecha) {
+                  toast({ variant: "destructive", title: "ID de proyecto y fecha son obligatorios" })
+                  return
+                }
+                try {
+                  setCartaInvLoading(true)
+                  const fechaLegible = new Date(cartaInvForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.cartaInvitacionTutor({
+                    idProyecto: Number(cartaInvForm.idProyecto),
+                    cite: cartaInvForm.cite || undefined,
+                    fecha: fechaLegible,
+                    destinatarioNombre: cartaInvForm.destinatarioNombre || undefined,
+                    destinatarioCargo: cartaInvForm.destinatarioCargo || undefined,
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Carta generada", description: "PDF generado desde backend." })
+                  setShowCartaInvModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Invitación"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setCartaInvLoading(false)
+                }
+              }}
+            >
+              {cartaInvLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Carta de Aceptación (Simple Mock) */}
+      {/* Modal Carta de Aceptación (Tutor) */}
       <Dialog open={showCartaAceModal} onOpenChange={setShowCartaAceModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Carta Aceptación (Ejemplo)</DialogTitle>
+            <DialogTitle>Carta de Aceptación de Tutor</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Fecha</Label>
-              <Input type="date" value={cartaFecha} onChange={e => setCartaFecha(e.target.value)} />
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={cartaAceForm.idProyecto}
+                onChange={(e) => setCartaAceForm({ ...cartaAceForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
             </div>
-            <p className="text-sm text-muted-foreground">Generará una carta con datos de ejemplo.</p>
+            <div className="grid gap-2">
+              <Label>CITE (opcional)</Label>
+              <Input value={cartaAceForm.cite} onChange={(e) => setCartaAceForm({ ...cartaAceForm, cite: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={cartaAceForm.fecha}
+                onChange={(e) => setCartaAceForm({ ...cartaAceForm, fecha: e.target.value })}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El backend obtiene estudiante, jefe de carrera y tutor desde el proyecto.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCartaAceModal(false)}>Cancelar</Button>
-            <Button onClick={() => {
-              const fechaLegible = new Date(cartaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
-              openCartaAceptacionWindow({
-                ciudadFecha: `La Paz, ${fechaLegible}`,
-                jefeNombre: "CNL. DAEN. EJEMPLO JEFE",
-                jefeCargo: "JEFE DE CARRERA",
-                estudianteNombre: "ESTUDIANTE EJEMPLO",
-                estudianteEspecialidad: "Ingeniería de Sistemas",
-                tituloProyecto: "SISTEMA DE EJEMPLO PARA GESTION ACADEMICA",
-                tutorNombre: "ING. TUTOR EJEMPLO"
-              })
-              setShowCartaAceModal(false)
-            }}>Generar</Button>
+            <Button
+              disabled={cartaAceLoading}
+              onClick={async () => {
+                if (!cartaAceForm.idProyecto || !cartaAceForm.fecha) {
+                  toast({ variant: "destructive", title: "ID de proyecto y fecha son obligatorios" })
+                  return
+                }
+                try {
+                  setCartaAceLoading(true)
+                  const fechaLegible = new Date(cartaAceForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.cartaAceptacionTutor({
+                    idProyecto: Number(cartaAceForm.idProyecto),
+                    cite: cartaAceForm.cite || undefined,
+                    fecha: fechaLegible,
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Carta generada", description: "PDF generado desde backend." })
+                  setShowCartaAceModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Aceptación"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setCartaAceLoading(false)
+                }
+              }}
+            >
+              {cartaAceLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -506,6 +500,15 @@ export default function DocumentacionPage() {
             <DialogTitle className="text-primary">Generar Acta de Aprobación</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={actaForm.idProyecto}
+                onChange={(e) => setActaForm({ ...actaForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
             <div className="grid gap-2">
               <Label>CITE</Label>
               <Input value={actaForm.cite} onChange={(e) => setActaForm({ ...actaForm, cite: e.target.value })} placeholder="Ej. 082" />
@@ -519,72 +522,57 @@ export default function DocumentacionPage() {
               <Input value={actaForm.hora} onChange={(e) => setActaForm({ ...actaForm, hora: e.target.value })} />
             </div>
             <div className="grid gap-2">
-              <Label>Fecha (texto)</Label>
-              <Input value={actaForm.fechaLarga} onChange={(e) => setActaForm({ ...actaForm, fechaLarga: e.target.value })} />
-            </div>
-            <div className="grid gap-2 md:col-span-2">
-              <Label>Título de Proyecto</Label>
-              <Input value={actaForm.tituloProyecto} onChange={(e) => setActaForm({ ...actaForm, tituloProyecto: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Postulante</Label>
-              <Input value={actaForm.postulante} onChange={(e) => setActaForm({ ...actaForm, postulante: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Vocal Revisor 1</Label>
-              <Input value={actaForm.revisor1} onChange={(e) => setActaForm({ ...actaForm, revisor1: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Vocal Revisor 2</Label>
-              <Input value={actaForm.revisor2} onChange={(e) => setActaForm({ ...actaForm, revisor2: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Tutor</Label>
-              <Input value={actaForm.tutor} onChange={(e) => setActaForm({ ...actaForm, tutor: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Docente TG</Label>
-              <Input value={actaForm.docenteTG} onChange={(e) => setActaForm({ ...actaForm, docenteTG: e.target.value })} />
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={actaForm.fecha}
+                onChange={(e) => setActaForm({ ...actaForm, fecha: e.target.value })}
+              />
             </div>
             <div className="grid gap-2">
               <Label>Fase</Label>
               <Input value={actaForm.fase} onChange={(e) => setActaForm({ ...actaForm, fase: e.target.value })} />
             </div>
-            <div className="grid gap-2">
-              <Label>Jefe de Carrera</Label>
-              <Input value={actaForm.jefeCarrera} onChange={(e) => setActaForm({ ...actaForm, jefeCarrera: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Grado Jefe</Label>
-              <Input value={actaForm.gradoJefe} onChange={(e) => setActaForm({ ...actaForm, gradoJefe: e.target.value })} />
+            <div className="col-span-full text-xs text-muted-foreground">
+              Los datos de postulante, revisores, tutor y DocTG se obtienen automáticamente del proyecto en backend.
             </div>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowActaModal(false)}>Cancelar</Button>
             <Button
-              onClick={() => {
-                if (!actaForm.cite || !actaForm.postulante || !actaForm.tituloProyecto || !actaForm.revisor1 || !actaForm.revisor2 || !actaForm.tutor || !actaForm.docenteTG) {
-                  toast({ variant: "destructive", title: "Completa los campos obligatorios" })
+              disabled={actaLoading}
+              onClick={async () => {
+                if (!actaForm.idProyecto || !actaForm.cite || !actaForm.fecha) {
+                  toast({ variant: "destructive", title: "ID de proyecto, CITE y fecha son obligatorios" })
                   return
                 }
-                openActaAprobacionWindow({
-                  cite: actaForm.cite,
-                  ciudad: actaForm.ciudad,
-                  hora: actaForm.hora,
-                  fechaLarga: actaForm.fechaLarga,
-                  postulante: actaForm.postulante,
-                  tituloProyecto: actaForm.tituloProyecto,
-                  revisor1: actaForm.revisor1,
-                  revisor2: actaForm.revisor2,
-                  tutor: actaForm.tutor,
-                  docenteTG: actaForm.docenteTG,
-                  jefeCarrera: actaForm.jefeCarrera,
-                  gradoJefe: actaForm.gradoJefe,
-                  fase: actaForm.fase,
-                })
-                setShowActaModal(false)
+                try {
+                  setActaLoading(true)
+                  const fechaLarga = new Date(actaForm.fecha).toLocaleDateString("es-BO", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.actaAprobacion({
+                    idProyecto: Number(actaForm.idProyecto),
+                    cite: actaForm.cite,
+                    ciudad: actaForm.ciudad || undefined,
+                    hora: actaForm.hora || undefined,
+                    fechaLarga,
+                    fase: actaForm.fase || undefined,
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Acta generada", description: "Se generó y descargó el PDF desde el backend." })
+                  setShowActaModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Acta de Aprobación"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setActaLoading(false)
+                }
               }}
             >
+              {actaLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar Acta
             </Button>
           </DialogFooter>

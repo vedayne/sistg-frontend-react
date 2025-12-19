@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
+import { apiClient } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -39,14 +40,34 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    if (user?.imageUrl) {
-      setProfileImage(user.imageUrl)
-    } else if (user?.fotoPerfil?.remotepath) {
-      setProfileImage(user.fotoPerfil.remotepath)
-    } else {
+    let objectUrl: string | null = null
+
+    const loadProfileImage = async () => {
+      if (user?.imageUrl) {
+        try {
+          const blob = await apiClient.profile.fetchImage(user.imageUrl)
+          objectUrl = URL.createObjectURL(blob)
+          setProfileImage(objectUrl)
+          return
+        } catch (err) {
+          console.error("[v0] No se pudo obtener la foto de perfil:", err)
+        }
+      }
+
+      if (user?.fotoPerfil?.remotepath?.startsWith("http")) {
+        setProfileImage(user.fotoPerfil.remotepath)
+        return
+      }
+
       setProfileImage(null)
     }
-  }, [user?.imageUrl, user?.fotoPerfil])
+
+    loadProfileImage()
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [user?.imageUrl, user?.fotoPerfil?.remotepath])
 
   useEffect(() => {
     if (activeTab === "sesiones") {
@@ -115,8 +136,7 @@ export default function ProfilePage() {
     setIsUploadingImage(true)
     setUploadMessage("")
     try {
-      const result = await uploadProfileImage(file)
-      setProfileImage(result.archivo.remotepath || URL.createObjectURL(file))
+      await uploadProfileImage(file)
       setUploadMessage("Foto de perfil actualizada")
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo subir la imagen"
@@ -162,7 +182,16 @@ export default function ProfilePage() {
     }
   }
 
-  const roles = user.roles?.map((r) => r.name).join(", ") || "Estudiante"
+  const userType: "estudiante" | "docente" | "administrativo" =
+    user.academico?.codAlumno ? "estudiante" : user.academico?.codDocente ? "docente" : "administrativo"
+  const userTypeLabel = userType === "docente" ? "Docente" : userType === "administrativo" ? "Administrativo" : "Estudiante"
+  const roles = user.roles?.map((r) => r.name).join(", ") || userTypeLabel
+  const fuerzaLabel = user.persona?.fuerza ? (user.persona.fuerza === "Militar" ? "Militar" : "Civil") : "N/A"
+  const semestreActual = (() => {
+    const semestre = user.academico?.semestreActual
+    if (typeof semestre === "string" || semestre === null || semestre === undefined) return semestre
+    return semestre.name || semestre.code
+  })()
 
   const parseUserAgent = (ua: string) => {
     const isChromeMatch = ua.match(/Chrome\/(\d+)/)
@@ -270,8 +299,16 @@ export default function ProfilePage() {
                     <p className="font-medium text-foreground">{user.persona?.nombreCompleto}</p>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Tipo de Usuario</label>
+                    <p className="font-medium text-foreground">{userTypeLabel}</p>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-1">Carnet de Identidad</label>
                     <p className="font-medium text-foreground">{user.persona?.ci || "N/A"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Grado</label>
+                    <p className="font-medium text-foreground">{user.persona?.grado || user.academico?.grado || "N/A"}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-1">Correo Personal</label>
@@ -294,8 +331,10 @@ export default function ProfilePage() {
                     <p className="font-medium text-foreground">{user.persona?.sexo || "N/A"}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Grado</label>
-                    {user.persona?.fuerza === "Militar" ? "Militar" : "Civil"}
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">
+                      Fuerza / Condición
+                    </label>
+                    <p className="font-medium text-foreground">{fuerzaLabel}</p>
                   </div>
                 </div>
               </CardContent>
@@ -323,15 +362,31 @@ export default function ProfilePage() {
                   <p className="font-medium text-foreground">{user.academico?.nivelAcad || "N/A"}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Tipo de Estudiante</label>
-                  <p className="font-medium text-foreground">
-                    {user.persona?.fuerza === "Militar" ? "Estudiante Militar" : "Estudiante Civil"}
-                  </p>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Tipo</label>
+                  <p className="font-medium text-foreground">{userTypeLabel}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Código SAGA</label>
-                  <p className="font-medium text-foreground">{user.academico?.codAlumno || "N/A"}</p>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
+                    {userType === "docente" ? "Código Docente" : "Código SAGA"}
+                  </label>
+                  <p className="font-medium text-foreground">
+                    {userType === "docente"
+                      ? user.academico?.codDocente || user.academico?.idSaga || "N/A"
+                      : user.academico?.codAlumno || user.academico?.idSaga || "N/A"}
+                  </p>
                 </div>
+                {userType === "estudiante" && (
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Semestre Actual</label>
+                    <p className="font-medium text-foreground">{semestreActual || "N/A"}</p>
+                  </div>
+                )}
+                {userType === "docente" && (
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Profesión</label>
+                    <p className="font-medium text-foreground">{user.academico?.profesion || "N/A"}</p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">Roles</label>
                   <p className="font-medium text-foreground text-sm">{roles}</p>

@@ -13,10 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import type { ProjectResponseDto, CreateProjectDto, ResearchLine, Gestion, EstudianteBasicInfo, DocenteBasicInfo, UserBasicInfo, Phase } from "@/lib/types"
-import { openNotaServicioWindow } from "@/components/reportes/nota-servicio"
-import { openCartaInvitacionWindow } from "@/components/reportes/carta-invitacion-tutor"
-import { openCartaAceptacionWindow } from "@/components/reportes/carta-aceptacion-tutor"
-import { openActaAprobacionWindow } from "@/components/reportes/acta-aprobacion"
 import { Label } from "@/components/ui/label"
 
 export default function ProyectosPage() {
@@ -38,17 +34,22 @@ export default function ProyectosPage() {
 
   // Report Modals State
   const [showInvitacionModal, setShowInvitacionModal] = useState(false)
-  const [invitacionFecha, setInvitacionFecha] = useState(() => new Date().toISOString().slice(0, 10))
-  const [invitacionSemestre, setInvitacionSemestre] = useState("Octavo")
-  const [invitacionCarrera, setInvitacionCarrera] = useState("Ingeniería de Sistemas")
-
+  const [invCite, setInvCite] = useState("")
+  const [invFecha, setInvFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [invDestNombre, setInvDestNombre] = useState("")
+  const [invDestCargo, setInvDestCargo] = useState("DOCENTE DE LA EMI")
   const [showAceptacionModal, setShowAceptacionModal] = useState(false)
-  const [aceptacionFecha, setAceptacionFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [aceCite, setAceCite] = useState("")
+  const [aceFecha, setAceFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [invGenerating, setInvGenerating] = useState(false)
+  const [aceGenerating, setAceGenerating] = useState(false)
 
   const [showActaModal, setShowActaModal] = useState(false)
   const [actaCite, setActaCite] = useState("")
   const [actaFecha, setActaFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [actaHora, setActaHora] = useState("10:00")
+  const [notaGenerating, setNotaGenerating] = useState(false)
+  const [actaGenerating, setActaGenerating] = useState(false)
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -89,6 +90,17 @@ export default function ProyectosPage() {
     idUserJefeC: undefined,
     idEstudiante: undefined,
   })
+
+  const downloadArchivo = async (archivoId: number, filename?: string) => {
+    const blob = await apiClient.documents.download(archivoId)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename || `reporte-${archivoId}.pdf`
+    a.target = "_blank"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   // Form State
 
@@ -557,7 +569,11 @@ export default function ProyectosPage() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setInvitacionFecha(new Date().toISOString().slice(0, 10))
+                      const today = new Date().toISOString().slice(0, 10)
+                      setInvFecha(today)
+                      setInvCite("")
+                      setInvDestNombre(detailProject.docenteTutor?.nombreCompleto || "")
+                      setInvDestCargo("DOCENTE DE LA EMI")
                       setShowInvitacionModal(true)
                     }}
                   >
@@ -566,7 +582,9 @@ export default function ProyectosPage() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setAceptacionFecha(new Date().toISOString().slice(0, 10))
+                      const today = new Date().toISOString().slice(0, 10)
+                      setAceFecha(today)
+                      setAceCite("")
                       setShowAceptacionModal(true)
                     }}
                   >
@@ -641,27 +659,36 @@ export default function ProyectosPage() {
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowNotaModal(false)}>Cancelar</Button>
             <Button
-              onClick={() => {
-                const fechaLegible = detailNotaFecha
-                  ? new Date(detailNotaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
-                  : ""
-                openNotaServicioWindow({
-                  fecha: fechaLegible,
-                  cite: detailNotaCite || `CITE-${detailProject?.id ?? ""}-${new Date().getFullYear()}`,
-                  tituloProyecto: detailProject?.titulo || "",
-                  postulante: detailProject?.estudiante?.nombreCompleto || "",
-                  tutor: detailProject?.docenteTutor?.nombreCompleto || "",
-                  revisor1: detailProject?.docenteRev1?.nombreCompleto || "",
-                  docenteTG: detailProject?.docenteTG?.nombreCompleto || "",
-                  revisor2: detailProject?.docenteRev2?.nombreCompleto || "",
-                  fase: faseSelected,
-                  jefeCarrera: detailProject?.userJefeC?.nombreCompleto || detailProject?.userJefeC?.email || "JEFE DE CARRERA",
-                  gradoJefe: detailProject?.userJefeC?.grado || "",
-                })
-                setShowNotaModal(false)
+              onClick={async () => {
+                if (!detailProject) return
+                if (!detailNotaCite) {
+                  toast({ variant: "destructive", title: "CITE es obligatorio" })
+                  return
+                }
+                try {
+                  setNotaGenerating(true)
+                  const fechaLegible = detailNotaFecha
+                    ? new Date(detailNotaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                    : ""
+                  const resp = await apiClient.reportes.notaServicio({
+                    idProyecto: detailProject.id,
+                    cite: detailNotaCite,
+                    fecha: fechaLegible,
+                    fase: faseSelected || undefined,
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Nota generada", description: "PDF generado desde backend." })
+                  setShowNotaModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Nota de Servicio"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setNotaGenerating(false)
+                }
               }}
-              disabled={!detailProject}
+              disabled={!detailProject || notaGenerating}
             >
+              {notaGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>
@@ -676,47 +703,61 @@ export default function ProyectosPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid gap-2">
+              <Label>CITE (opcional)</Label>
+              <Input value={invCite} onChange={(e) => setInvCite(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
               <Label>Fecha</Label>
-              <Input type="date" value={invitacionFecha} onChange={(e) => setInvitacionFecha(e.target.value)} />
+              <Input type="date" value={invFecha} onChange={(e) => setInvFecha(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label>Semestre Estudiante</Label>
-              <Select value={invitacionSemestre} onValueChange={setInvitacionSemestre}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Octavo">Octavo</SelectItem>
-                  <SelectItem value="Noveno">Noveno</SelectItem>
-                  <SelectItem value="Décimo">Décimo</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Destinatario (nombre)</Label>
+              <Input value={invDestNombre} onChange={(e) => setInvDestNombre(e.target.value)} placeholder="Tutor asignado" />
             </div>
             <div className="grid gap-2">
-              <Label>Carrera</Label>
-              <Input value={invitacionCarrera} onChange={(e) => setInvitacionCarrera(e.target.value)} />
+              <Label>Destinatario (cargo)</Label>
+              <Input value={invDestCargo} onChange={(e) => setInvDestCargo(e.target.value)} />
             </div>
+            <p className="text-xs text-muted-foreground">
+              Usa el proyecto cargado en detalle para tomar estudiante y título.
+            </p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowInvitacionModal(false)}>Cancelar</Button>
             <Button
-              onClick={() => {
-                const fechaLegible = invitacionFecha
-                  ? new Date(invitacionFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
-                  : ""
-
+              disabled={!detailProject || invGenerating}
+              onClick={async () => {
                 if (!detailProject) return
-
-                openCartaInvitacionWindow({
-                  ciudadFecha: `La Paz, ${fechaLegible}`,
-                  destinatarioNombre: detailProject.docenteTutor?.nombreCompleto || "TUTOR ASIGNADO",
-                  destinatarioCargo: "DOCENTE DE LA EMI", // Generic title as requested role isn't clear in prompt
-                  estudianteNombre: detailProject.estudiante?.nombreCompleto || "",
-                  estudianteSemestre: invitacionSemestre,
-                  estudianteCarrera: invitacionCarrera,
-                  tituloProyecto: detailProject.titulo || "",
-                })
-                setShowInvitacionModal(false)
+                if (!invFecha) {
+                  toast({ variant: "destructive", title: "Fecha es obligatoria" })
+                  return
+                }
+                try {
+                  setInvGenerating(true)
+                  const fechaLegible = new Date(invFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.cartaInvitacionTutor({
+                    idProyecto: detailProject.id,
+                    cite: invCite || undefined,
+                    fecha: fechaLegible,
+                    destinatarioNombre: invDestNombre || detailProject.docenteTutor?.nombreCompleto || undefined,
+                    destinatarioCargo: invDestCargo || undefined,
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Carta generada", description: "PDF generado desde backend." })
+                  setShowInvitacionModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Invitación"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setInvGenerating(false)
+                }
               }}
             >
+              {invGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>
@@ -731,32 +772,51 @@ export default function ProyectosPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid gap-2">
-              <Label>Fecha</Label>
-              <Input type="date" value={aceptacionFecha} onChange={(e) => setAceptacionFecha(e.target.value)} />
+              <Label>CITE (opcional)</Label>
+              <Input value={aceCite} onChange={(e) => setAceCite(e.target.value)} />
             </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={aceFecha} onChange={(e) => setAceFecha(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Usa el proyecto cargado para traer estudiante, tutor y jefe de carrera.
+            </p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowAceptacionModal(false)}>Cancelar</Button>
             <Button
-              onClick={() => {
-                const fechaLegible = aceptacionFecha
-                  ? new Date(aceptacionFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
-                  : ""
-
+              disabled={!detailProject || aceGenerating}
+              onClick={async () => {
                 if (!detailProject) return
-
-                openCartaAceptacionWindow({
-                  ciudadFecha: `La Paz, ${fechaLegible}`,
-                  jefeNombre: detailProject.userJefeC?.nombreCompleto || detailProject.userJefeC?.email || "JEFE DE CARRERA",
-                  jefeCargo: "JEFE DE CARRERA",
-                  estudianteNombre: detailProject.estudiante?.nombreCompleto || "",
-                  estudianteEspecialidad: invitacionCarrera, // Use same career as invitation or default
-                  tituloProyecto: detailProject.titulo || "",
-                  tutorNombre: detailProject.docenteTutor?.nombreCompleto || "",
-                })
-                setShowAceptacionModal(false)
+                if (!aceFecha) {
+                  toast({ variant: "destructive", title: "Fecha es obligatoria" })
+                  return
+                }
+                try {
+                  setAceGenerating(true)
+                  const fechaLegible = new Date(aceFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.cartaAceptacionTutor({
+                    idProyecto: detailProject.id,
+                    cite: aceCite || undefined,
+                    fecha: fechaLegible,
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Carta generada", description: "PDF generado desde backend." })
+                  setShowAceptacionModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Aceptación"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setAceGenerating(false)
+                }
               }}
             >
+              {aceGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>
@@ -801,32 +861,43 @@ export default function ProyectosPage() {
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowActaModal(false)}>Cancelar</Button>
             <Button
-              onClick={() => {
+              disabled={!detailProject || actaGenerating}
+              onClick={async () => {
                 if (!detailProject) {
                   toast({ variant: "destructive", title: "Sin proyecto cargado" })
                   return
                 }
-                const fechaLarga = actaFecha
-                  ? new Date(actaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
-                  : ""
-                openActaAprobacionWindow({
-                  cite: actaCite || "S/N",
-                  ciudad: "LA PAZ",
-                  hora: actaHora,
-                  fechaLarga: fechaLarga || "S/F",
-                  postulante: detailProject.estudiante?.nombreCompleto || "",
-                  tituloProyecto: detailProject.titulo || "",
-                  revisor1: detailProject.docenteRev1?.nombreCompleto || "",
-                  revisor2: detailProject.docenteRev2?.nombreCompleto || "S/N",
-                  tutor: detailProject.docenteTutor?.nombreCompleto || "",
-                  docenteTG: detailProject.docenteTG?.nombreCompleto || "",
-                  jefeCarrera: detailProject.userJefeC?.nombreCompleto || detailProject.userJefeC?.email || "Jefe de Carrera",
-                  gradoJefe: detailProject.userJefeC?.grado || "",
-                  fase: faseSelected || "BORRADOR FINAL",
-                })
-                setShowActaModal(false)
+                if (!actaCite || !actaFecha) {
+                  toast({ variant: "destructive", title: "CITE y fecha son obligatorios" })
+                  return
+                }
+                try {
+                  setActaGenerating(true)
+                  const fechaLarga = new Date(actaFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.actaAprobacion({
+                    idProyecto: detailProject.id,
+                    cite: actaCite,
+                    ciudad: "LA PAZ",
+                    hora: actaHora,
+                    fechaLarga: fechaLarga || "S/F",
+                    fase: faseSelected || "BORRADOR FINAL",
+                  })
+                  await downloadArchivo(resp.archivoId, resp.filename)
+                  toast({ title: "Acta generada", description: "PDF generado desde backend." })
+                  setShowActaModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Acta de Aprobación"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setActaGenerating(false)
+                }
               }}
             >
+              {actaGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar Acta
             </Button>
           </DialogFooter>

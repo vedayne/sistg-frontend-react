@@ -19,7 +19,10 @@ import type {
 } from "./types"
 
 // const API_BASE_URL = "https://sistg-backend.onrender.com/rtg"
-const API_BASE_URL = "http://localhost:4000/rtg"
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/rtg"
+
+const resolveApiUrl = (path: string) =>
+  path.startsWith("http://") || path.startsWith("https://") ? path : `${API_BASE_URL}${path}`
 
 interface ApiResponse<T> {
   data: T
@@ -129,7 +132,7 @@ export const apiClient = {
       headers.set("Content-Type", "application/json")
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...requestInit, headers })
+    const response = await fetch(resolveApiUrl(endpoint), { ...requestInit, headers })
 
     if (!response.ok) {
       const shouldAttemptRefresh = !skipAuth && !_isRefreshRequest && !_retryAttempted && response.status === 401
@@ -221,6 +224,26 @@ export const apiClient = {
           body: formData,
         },
       )
+    },
+
+    fetchImage: async (path = "/profile/image") => {
+      const token = apiClient.getAccessToken()
+      if (!token) throw new Error("No hay una sesión activa para obtener la imagen de perfil")
+
+      const baseUrl = resolveApiUrl(path)
+      const separator = baseUrl.includes("?") ? "&" : "?"
+      const url = baseUrl.includes("ts=") ? baseUrl : `${baseUrl}${separator}ts=${Date.now()}`
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      })
+
+      if (!response.ok) {
+        const errorMessage = await parseErrorMessage(response)
+        throw new Error(errorMessage || "No se pudo obtener la imagen de perfil")
+      }
+
+      return response.blob()
     },
   },
 
@@ -622,6 +645,59 @@ export const apiClient = {
     },
   },
 
+  reportes: {
+    notaServicio: async (data: {
+      idProyecto: number
+      cite: string
+      fecha: string
+      fase?: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/nota-servicio",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+    actaAprobacion: async (data: {
+      idProyecto: number
+      cite: string
+      fechaLarga: string
+      ciudad?: string
+      hora?: string
+      fase?: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/acta-aprobacion",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+    cartaAceptacionTutor: async (data: { idProyecto: number; cite?: string; fecha?: string }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/carta-aceptacion-tutor",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+    cartaInvitacionTutor: async (data: {
+      idProyecto: number
+      cite?: string
+      fecha?: string
+      destinatarioNombre?: string
+      destinatarioCargo?: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/carta-invitacion-tutor",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+  },
+
   documents: {
     getByStudent: async (idEstudiante: number) =>
       apiClient.request<{ ok: boolean; message: string; data: StudentDocumentsResponse }>(
@@ -630,6 +706,16 @@ export const apiClient = {
       ),
     getByProject: async (idProyecto: number) =>
       apiClient.request<any>(`/documents/project/${idProyecto}`, {}), // Updated in next iteration if types available
+    getTypesSummary: async () =>
+      apiClient.request<{ ok: boolean; message: string; data: DocumentTypeSummaryResponse }>(
+        "/documents/types/summary",
+        {},
+      ),
+    getFilesByType: async (idTypeDoc: number) =>
+      apiClient.request<{ ok: boolean; message: string; data: FilesByTypeResponse }>(
+        `/documents/types/${idTypeDoc}/files`,
+        {},
+      ),
     download: async (idArchivo: number) => {
       const token = apiClient.getAccessToken()
       const response = await fetch(`${API_BASE_URL}/documents/download/${idArchivo}`, {

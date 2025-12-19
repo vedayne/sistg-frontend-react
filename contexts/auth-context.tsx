@@ -6,7 +6,10 @@ import { apiClient } from "@/lib/api-client"
 
 const normalizeProfile = (profileData: any): User => ({
   ...profileData,
-  imageUrl: profileData?.imageUrl ?? profileData?.fotoPerfil?.remotepath ?? null,
+  imageUrl:
+    profileData?.imageUrl ??
+    (profileData?.fotoPerfil?.remotepath?.startsWith("http") ? profileData.fotoPerfil.remotepath : null),
+  docenteId: profileData?.docenteId ?? profileData?.docentes?.id ?? profileData?.docente?.id ?? null,
 })
 
 interface Session {
@@ -226,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user) {
           setUser({
             ...user,
-            imageUrl: response.archivo.remotepath || null,
+            imageUrl: `/profile/image?ts=${Date.now()}`,
             fotoPerfil: {
               id: response.archivo.id.toString(),
               remotepath: response.archivo.remotepath,
