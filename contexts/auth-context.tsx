@@ -93,6 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[v0] Iniciando login para:", email)
       setError(null)
       const response = await apiClient.auth.login(email, password)
+
+      // Imprime el objeto completo que llega desde la API
+      console.log("========================================")
+      console.log("OBJETO COMPLETO DE LA API - LOGIN:")
+      console.log(JSON.stringify(response, null, 2))
+      console.log("========================================")
       console.log("[v0] Respuesta de login:", response)
 
       const authResponse = response as any
@@ -105,6 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const profileResponse = await apiClient.profile.get()
       const profile = (profileResponse as any).data || profileResponse
+
+      // Imprime el objeto completo del perfil obtenido
+      console.log("========================================")
+      console.log("OBJETO COMPLETO DE LA API - PERFIL:")
+      console.log(JSON.stringify(profile, null, 2))
+      console.log("========================================")
       console.log("[v0] Perfil obtenido:", profile)
 
       const normalizedProfile = normalizeProfile(profile)
