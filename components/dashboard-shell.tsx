@@ -32,7 +32,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         <header className="border-b bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80 sticky top-0 z-40">
           <div className="px-6 py-4 flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-primary">SISTG EMI</h1>
+              <h1 className="text-2xl font-bold text-primary">RTG EMI</h1>
               <p className="text-sm text-muted-foreground">{user?.persona?.nombreCompleto}</p>
             </div>
             <div className="flex items-center gap-4">

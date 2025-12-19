@@ -88,7 +88,7 @@ export default function HomePage() {
       query: "engineering education students learning technology",
       name: "sistg-04.jpg",
     },
-    { id: 5, title: "Sistema SISTG", query: "management system organization digital platform", name: "sistg-05.jpg" },
+    { id: 5, title: "Sistema RTG", query: "management system organization digital platform", name: "sistg-05.jpg" },
   ]
 
   useEffect(() => {
@@ -117,11 +117,11 @@ export default function HomePage() {
       <header className="border-b bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
-              <img src={"/emi_logo_png.webp"} alt="Logo EMI" className="w-8 h-8" />
+            <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
+              <img src={"/emi_logo_png.webp"} alt="Logo EMI" className="w-12 h-12 object-contain" />
             </div>
             <div>
-              <h1 className="font-bold text-lg text-primary">SISTG</h1>
+              <h1 className="font-bold text-lg text-primary">RTG</h1>
               <p className="text-xs text-muted-foreground">Sistema de Gestión de TG</p>
             </div>
           </div>

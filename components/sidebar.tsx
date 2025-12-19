@@ -54,24 +54,25 @@ export default function Sidebar() {
   }, [user, rolesList, menuItems])
 
   return (
-    <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-primary text-primary-foreground flex flex-col overflow-hidden border-r dark:border-slate-800 transition-all duration-300`}>
+    <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-sidebar text-sidebar-foreground flex flex-col overflow-hidden border-r border-sidebar-border transition-all duration-300`}>
       {/* Logo and Collapse Button */}
-      <div className="p-6 border-b border-primary/20">
+      <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center font-bold text-primary shrink-0">
+            {/*<div className="w-10 h-10 bg-sidebar-primary rounded-lg flex items-center justify-center font-bold text-sidebar-primary-foreground shrink-0">
               EMI
-            </div>
+            </div>*/}
+            <img src="/logo_emi.png" alt="Logo" className="w-32 h-16 rounded-lg object-contain" />
             {!isCollapsed && (
               <div className="overflow-hidden">
-                <h2 className="font-bold text-lg">SISTG</h2>
+                <h2 className="font-bold text-lg text-sidebar-foreground">RTG</h2>
                 <p className="text-xs opacity-90">Gestión de TG</p>
               </div>
             )}
           </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 hover:bg-primary/40 rounded-lg transition-colors shrink-0"
+            className="p-2 hover:bg-sidebar-accent/40 rounded-lg transition-colors shrink-0"
             title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
           >
             {isCollapsed ? (
@@ -84,7 +85,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-secondary scrollbar-track-primary/20">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-sidebar-primary scrollbar-track-sidebar-border">
         {menuItems.map((item) => {
           const Icon = item.icon
           const isActive = currentPage === item.id
@@ -95,8 +96,8 @@ export default function Sidebar() {
               className={`w-full text-left rounded-lg transition-all font-medium flex items-center ${
                 isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3 gap-3'
               } ${isActive
-                ? "bg-secondary text-secondary-foreground shadow-md"
-                : "hover:bg-primary/80 text-primary-foreground/90 hover:text-primary-foreground"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
+                : "hover:bg-sidebar-accent/40 text-sidebar-foreground/90 hover:text-sidebar-foreground"
                 }`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -112,19 +113,19 @@ export default function Sidebar() {
       </nav>
 
       {/* User Info with Popover */}
-      <div className="p-4 border-t border-primary/20 bg-primary/50">
+      <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/20">
         <Popover>
           <PopoverTrigger asChild>
-            <button className={`w-full flex items-center hover:bg-primary/40 p-2 rounded-md transition-colors group ${
+            <button className={`w-full flex items-center hover:bg-sidebar-accent/40 p-2 rounded-md transition-colors group ${
               isCollapsed ? 'justify-center' : 'gap-3 text-left'
             }`}>
-              <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center text-secondary-foreground shrink-0">
+              <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-sidebar-primary shrink-0">
                 <Shield className="w-4 h-4" />
               </div>
               {!isCollapsed && (
                 <>
                   <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-medium truncate">{user?.persona?.nombreCompleto || user?.email}</p>
+                    <p className="text-sm font-medium truncate text-sidebar-foreground">{user?.persona?.nombreCompleto || user?.email}</p>
                     <div className="flex items-center gap-1 text-xs opacity-75">
                       <span className="truncate">{rolesList[0]?.description || "Sin Rol"}</span>
                       {rolesList.length > 1 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">+{rolesList.length - 1}</Badge>}
@@ -140,7 +141,7 @@ export default function Sidebar() {
             <div className="space-y-2">
               {rolesList.map((role, idx) => (
                 <div key={idx} className="bg-muted/50 p-2 rounded text-xs border border-muted-foreground/10">
-                  <div className="font-medium text-primary mb-0.5">{role.name}</div>
+                  <div className="font-medium text-primary dark:text-secondary mb-0.5">{role.name}</div>
                   <div className="text-muted-foreground">{role.description}</div>
                 </div>
               ))}

@@ -15,7 +15,7 @@ const montserrat = Montserrat({
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SISTG - Escuela Militar de Ingeniería",
+  title: "RTG - Escuela Militar de Ingeniería",
   description: "Sistema de gestión de trabajos de grado - EMI",
   generator: "v0.app",
   icons: {
@@ -53,7 +53,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#004f9f" />
       </head>
       <body className={`${montserrat.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="sistg-theme">
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="rtg-theme">
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
         <Analytics />

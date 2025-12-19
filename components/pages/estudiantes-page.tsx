@@ -100,7 +100,7 @@ export default function EstudiantesPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Nombre, código o SAGA..."
+                  placeholder="Nombre, código o RGA..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
@@ -126,7 +126,7 @@ export default function EstudiantesPage() {
               <table className="w-full text-xs md:text-sm">
                 <thead>
                   <tr className="border-b-2 border-primary bg-muted/20">
-                    <th className="text-left py-3 px-2 md:px-4 font-bold">ID SAGA</th>
+                    <th className="text-left py-3 px-2 md:px-4 font-bold">ID RGA</th>
                     <th className="text-left py-3 px-2 md:px-4 font-bold">Código</th>
                     <th className="text-left py-3 px-2 md:px-4 font-bold">Nombre Completo</th>
                     <th className="text-left py-3 px-2 md:px-4 font-bold">Carrera</th>

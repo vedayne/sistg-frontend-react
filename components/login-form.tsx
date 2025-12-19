@@ -210,7 +210,7 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
   return (
     <div className="relative min-h-screen overflow-hidden">
       <div className="absolute inset-0 -z-10">
-        <img src="/sistg-03.jpg" alt="Fondo SISTG" className="w-full h-full object-cover opacity-55" />
+        <img src="/sistg-03.jpg" alt="Fondo RTG" className="w-full h-full object-cover opacity-55" />
         <div className="absolute inset-0 bg-linear-to-br from-background/65 via-background/70 to-background/75 dark:from-background/60 dark:via-background/65 dark:to-background/70" />
       </div>
 
@@ -221,7 +221,7 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
               <img src={"/emi_logo_new.png"} alt="Logo EMI" className="w-8 h-8" />
             </div>
             <div className="text-left">
-              <h1 className="font-bold text-xl text-primary leading-tight">SISTG</h1>
+              <h1 className="font-bold text-xl text-primary leading-tight">RTG</h1>
               <p className="text-xs text-muted-foreground">Sistema de Gestión de Trabajos de Grado</p>
             </div>
           </button>

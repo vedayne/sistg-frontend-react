@@ -972,7 +972,7 @@ export default function ProyectosPage() {
                   <div className="text-sm">
                     <p className="font-medium">{selectedStudent.nombreCompleto}</p>
                     <p className="text-xs text-muted-foreground break-all">
-                      {selectedStudent.email || `ID SAGA: ${selectedStudent.idSaga ?? "-"}`}
+                      {selectedStudent.email || `ID RGA: ${selectedStudent.idSaga ?? "-"}`}
                     </p>
                   </div>
                   <Button
@@ -990,7 +990,7 @@ export default function ProyectosPage() {
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar estudiante por nombre, correo o ID SAGA..."
+                    placeholder="Buscar estudiante por nombre, correo o ID RGA..."
                     className="pl-8"
                     value={studentSearchTerm}
                     onChange={e => handleSearchStudent(e.target.value)}
@@ -1012,7 +1012,7 @@ export default function ProyectosPage() {
                         >
                           <p className="font-medium">{s.nombreCompleto}</p>
                           <p className="text-xs text-muted-foreground break-all">
-                            {s.email || `ID SAGA: ${s.idSaga ?? "-"}`}
+                            {s.email || `ID RGA: ${s.idSaga ?? "-"}`}
                           </p>
                         </div>
                       ))}

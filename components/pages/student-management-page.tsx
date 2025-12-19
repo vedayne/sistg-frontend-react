@@ -307,7 +307,7 @@ export default function StudentManagementPage() {
                   <th className="text-left py-4 px-4 font-bold">No.</th>
                   <th className="text-left py-4 px-4 font-bold">Estudiante</th>
                   <th className="text-left py-4 px-4 font-bold">Carrera</th>
-                  <th className="text-left py-4 px-4 font-bold">Código SAGA</th>
+                  <th className="text-left py-4 px-4 font-bold">Código RGA</th>
                   <th className="text-left py-4 px-4 font-bold">Email</th>
                   <th className="text-left py-4 px-4 font-bold">Acciones</th>
                 </tr>
@@ -439,7 +439,7 @@ export default function StudentManagementPage() {
                     <p className="font-semibold">{selectedEstudiante.carrera || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground font-medium">Código SAGA</p>
+                    <p className="text-muted-foreground font-medium">Código RGA</p>
                     <p className="font-mono font-semibold">{selectedEstudiante.idSaga}</p>
                   </div>
                   <div>

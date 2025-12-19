@@ -437,7 +437,7 @@ export default function AdminUserManagementPage() {
 
                 {selectedUsuario.idSaga && (
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground uppercase">SAGA ID</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase">RGA ID</label>
                     <p className="mt-2 font-mono font-bold text-sm">{selectedUsuario.idSaga}</p>
                   </div>
                 )}
