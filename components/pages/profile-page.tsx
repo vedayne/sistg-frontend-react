@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_BASE_URL } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -43,9 +43,25 @@ export default function ProfilePage() {
     let objectUrl: string | null = null
 
     const loadProfileImage = async () => {
-      if (user?.imageUrl) {
+      const imageUrl = user?.imageUrl
+      if (imageUrl) {
+        const isAbsolute = imageUrl.startsWith("http://") || imageUrl.startsWith("https://")
+        let shouldFetch = !isAbsolute
+        if (isAbsolute) {
+          try {
+            const apiOrigin = new URL(API_BASE_URL).origin
+            const imageOrigin = new URL(imageUrl).origin
+            shouldFetch = apiOrigin === imageOrigin
+          } catch {
+            shouldFetch = false
+          }
+        }
+        if (!shouldFetch) {
+          setProfileImage(imageUrl)
+          return
+        }
         try {
-          const blob = await apiClient.profile.fetchImage(user.imageUrl)
+          const blob = await apiClient.profile.fetchImage(imageUrl)
           objectUrl = URL.createObjectURL(blob)
           setProfileImage(objectUrl)
           return

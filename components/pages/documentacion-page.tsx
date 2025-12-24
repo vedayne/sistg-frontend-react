@@ -98,22 +98,6 @@ export default function DocumentacionPage() {
     }
   }
 
-  const filteredDocumentos = useMemo(() => {
-    return DOCUMENTOS.filter((doc) => {
-      const matchEstudiante =
-        searchEstudiante === "" || doc.estudiante.toLowerCase().includes(searchEstudiante.toLowerCase())
-      const matchGestion = searchGestion === "" || doc.gestion === searchGestion
-      const matchSemestre = searchSemestre === "" || doc.semestre === searchSemestre
-      const matchFase = searchFase === "" || doc.fase.toLowerCase().includes(searchFase.toLowerCase())
-      return matchEstudiante && matchGestion && matchSemestre && matchFase
-    })
-  }, [searchEstudiante, searchGestion, searchSemestre, searchFase])
-
-  const unique = (arr: string[]) => [...new Set(arr)]
-  const gestiones = unique(DOCUMENTOS.map((d) => d.gestion))
-  const semestres = unique(DOCUMENTOS.map((d) => d.semestre)).sort()
-  const fases = unique(DOCUMENTOS.map((d) => d.fase))
-
   return (
     <div className="p-6 space-y-6">
       <div>

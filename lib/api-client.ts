@@ -23,6 +23,18 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://loca
 
 const resolveApiUrl = (path: string) =>
   path.startsWith("http://") || path.startsWith("https://") ? path : `${API_BASE_URL}${path}`
+const normalizeApiPath = (path: string) => {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path
+  try {
+    const basePath = new URL(API_BASE_URL).pathname.replace(/\/$/, "")
+    if (basePath && path.startsWith(`${basePath}/`)) {
+      return path.slice(basePath.length)
+    }
+  } catch {
+    // ignore URL parsing errors and fall back to the original path
+  }
+  return path
+}
 
 interface ApiResponse<T> {
   data: T
@@ -230,7 +242,8 @@ export const apiClient = {
       const token = apiClient.getAccessToken()
       if (!token) throw new Error("No hay una sesión activa para obtener la imagen de perfil")
 
-      const baseUrl = resolveApiUrl(path)
+      const normalizedPath = normalizeApiPath(path)
+      const baseUrl = resolveApiUrl(normalizedPath)
       const separator = baseUrl.includes("?") ? "&" : "?"
       const url = baseUrl.includes("ts=") ? baseUrl : `${baseUrl}${separator}ts=${Date.now()}`
       const response = await fetch(url, {
