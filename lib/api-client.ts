@@ -144,7 +144,11 @@ export const apiClient = {
       headers.set("Content-Type", "application/json")
     }
 
-    const response = await fetch(resolveApiUrl(endpoint), { ...requestInit, headers })
+    const response = await fetch(resolveApiUrl(endpoint), {
+      ...requestInit,
+      headers,
+      credentials: requestInit.credentials ?? "include",
+    })
 
     if (!response.ok) {
       const shouldAttemptRefresh = !skipAuth && !_isRefreshRequest && !_retryAttempted && response.status === 401

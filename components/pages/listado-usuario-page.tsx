@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Mail, Lock, Loader2, X, Plus, Eye, EyeOff } from "lucide-react"
-import { apiClient } from "@/lib/api-client"
+import { apiClient, API_BASE_URL } from "@/lib/api-client"
 import type { UserBasicInfo, UserFilters } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
@@ -76,6 +76,8 @@ export default function ListadoUsuarioPage() {
 
   // UI state
   const [selectedUsuario, setSelectedUsuario] = useState<UserBasicInfo | null>(null)
+  const [userImages, setUserImages] = useState<Record<string, string>>({})
+  const userImagesRef = useRef<Record<string, string>>({})
   const [changePasswordLoading, setChangePasswordLoading] = useState(false)
   const [changePasswordSuccess, setChangePasswordSuccess] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
@@ -110,6 +112,86 @@ export default function ListadoUsuarioPage() {
   useEffect(() => {
     setStatusToSet(selectedUsuario?.status || "")
   }, [selectedUsuario])
+
+  useEffect(() => {
+    userImagesRef.current = userImages
+  }, [userImages])
+
+  useEffect(() => {
+    const currentIds = new Set(usuarios.map((usuario) => usuario.id))
+    const staleIds = Object.keys(userImagesRef.current).filter((id) => !currentIds.has(id))
+
+    if (!staleIds.length) return
+
+    staleIds.forEach((id) => {
+      const cachedUrl = userImagesRef.current[id]
+      if (cachedUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(cachedUrl)
+      }
+    })
+
+    setUserImages((prev) => {
+      const next = { ...prev }
+      staleIds.forEach((id) => delete next[id])
+      return next
+    })
+  }, [usuarios])
+
+  useEffect(() => {
+    let isActive = true
+
+    const loadUserImages = async () => {
+      const pending = usuarios.filter(
+        (usuario) => usuario.imageUrl && !userImagesRef.current[usuario.id],
+      )
+      if (!pending.length) return
+
+      await Promise.all(
+        pending.map(async (usuario) => {
+          const imageUrl = usuario.imageUrl
+          if (!imageUrl) return
+
+          const isAbsolute = imageUrl.startsWith("http://") || imageUrl.startsWith("https://")
+          let shouldFetch = !isAbsolute
+
+          if (isAbsolute) {
+            try {
+              const apiOrigin = new URL(API_BASE_URL).origin
+              const imageOrigin = new URL(imageUrl).origin
+              shouldFetch = apiOrigin === imageOrigin
+            } catch {
+              shouldFetch = false
+            }
+          }
+
+          if (!shouldFetch) {
+            if (isActive) {
+              setUserImages((prev) => (prev[usuario.id] ? prev : { ...prev, [usuario.id]: imageUrl }))
+            }
+            return
+          }
+
+          try {
+            const blob = await apiClient.profile.fetchImage(imageUrl)
+            const objectUrl = URL.createObjectURL(blob)
+            if (!isActive) {
+              URL.revokeObjectURL(objectUrl)
+              return
+            }
+            setUserImages((prev) => ({ ...prev, [usuario.id]: objectUrl }))
+          } catch (err) {
+            console.error("[v0] No se pudo obtener la foto del usuario:", err)
+          }
+        }),
+      )
+    }
+
+    loadUserImages()
+
+    return () => {
+      isActive = false
+    }
+  }, [usuarios])
 
   useEffect(() => {
     const loadRoles = async () => {
@@ -147,6 +229,8 @@ export default function ListadoUsuarioPage() {
     }, 250)
     return () => clearTimeout(handler)
   }, [specSearchTerm])
+
+  const getUserImageSrc = (usuario: UserBasicInfo) => userImages[usuario.id] || "/diverse-avatars.png"
 
   const resetCreateForm = () => {
     setCreateForm({ ...emptyCreateForm, especialidades: [] })
@@ -456,7 +540,7 @@ export default function ListadoUsuarioPage() {
                       <td className="py-3 px-4">{(page - 1) * limit + index + 1}</td>
                       <td className="py-3 px-4">
                         <img
-                          src={"/diverse-avatars.png"}
+                          src={getUserImageSrc(usuario)}
                           alt={usuario.fullName || usuario.email}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -546,7 +630,7 @@ export default function ListadoUsuarioPage() {
               {/* Profile picture */}
               <div className="flex justify-center mb-4">
                 <img
-                  src={"/diverse-avatars.png"}
+                  src={getUserImageSrc(selectedUsuario)}
                   alt={selectedUsuario.fullName || selectedUsuario.email}
                   className="w-20 h-20 rounded-lg object-cover border-2 border-primary/20"
                 />

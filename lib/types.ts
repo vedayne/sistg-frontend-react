@@ -119,6 +119,7 @@ export interface UserBasicInfo {
   id: string
   email: string
   status: UserStatus
+  imageUrl?: string | null
   nombres?: string
   apPaterno?: string
   apMaterno?: string
