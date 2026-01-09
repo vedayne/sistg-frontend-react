@@ -50,6 +50,9 @@ export default function ProyectosPage() {
   const [actaHora, setActaHora] = useState("10:00")
   const [notaGenerating, setNotaGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewName, setPreviewName] = useState("")
+  const [showPreview, setShowPreview] = useState(false)
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -91,15 +94,30 @@ export default function ProyectosPage() {
     idEstudiante: undefined,
   })
 
-  const downloadArchivo = async (archivoId: number, filename?: string) => {
+  const openPreview = async (archivoId: number, filename?: string) => {
     const blob = await apiClient.documents.download(archivoId)
     const url = URL.createObjectURL(blob)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(url)
+    setPreviewName(filename || `reporte-${archivoId}.pdf`)
+    setShowPreview(true)
+  }
+
+  const handlePreviewOpenChange = (open: boolean) => {
+    setShowPreview(open)
+    if (!open && previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(null)
+      setPreviewName("")
+    }
+  }
+
+  const handleDownloadPreview = () => {
+    if (!previewUrl) return
     const a = document.createElement("a")
-    a.href = url
-    a.download = filename || `reporte-${archivoId}.pdf`
-    a.target = "_blank"
+    a.href = previewUrl
+    a.download = previewName || "reporte.pdf"
     a.click()
-    URL.revokeObjectURL(url)
   }
 
   // Form State
@@ -676,8 +694,8 @@ export default function ProyectosPage() {
                     fecha: fechaLegible,
                     fase: faseSelected || undefined,
                   })
-                  await downloadArchivo(resp.archivoId, resp.filename)
-                  toast({ title: "Nota generada", description: "PDF generado desde backend." })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Nota generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowNotaModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar la Nota de Servicio"
@@ -746,8 +764,8 @@ export default function ProyectosPage() {
                     destinatarioNombre: invDestNombre || detailProject.docenteTutor?.nombreCompleto || undefined,
                     destinatarioCargo: invDestCargo || undefined,
                   })
-                  await downloadArchivo(resp.archivoId, resp.filename)
-                  toast({ title: "Carta generada", description: "PDF generado desde backend." })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Carta generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowInvitacionModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Invitación"
@@ -805,8 +823,8 @@ export default function ProyectosPage() {
                     cite: aceCite || undefined,
                     fecha: fechaLegible,
                   })
-                  await downloadArchivo(resp.archivoId, resp.filename)
-                  toast({ title: "Carta generada", description: "PDF generado desde backend." })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Carta generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowAceptacionModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Aceptación"
@@ -886,8 +904,8 @@ export default function ProyectosPage() {
                     fechaLarga: fechaLarga || "S/F",
                     fase: faseSelected || "BORRADOR FINAL",
                   })
-                  await downloadArchivo(resp.archivoId, resp.filename)
-                  toast({ title: "Acta generada", description: "PDF generado desde backend." })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Acta generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowActaModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar el Acta de Aprobación"
@@ -899,6 +917,26 @@ export default function ProyectosPage() {
             >
               {actaGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar Acta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPreview} onOpenChange={handlePreviewOpenChange}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Vista previa del documento</DialogTitle>
+          </DialogHeader>
+          {previewUrl ? (
+            <iframe title={previewName || "Documento"} src={previewUrl} className="w-full h-[70vh] border rounded-md" />
+          ) : (
+            <div className="flex items-center justify-center h-[50vh]">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          )}
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={handleDownloadPreview} disabled={!previewUrl}>
+              Descargar
             </Button>
           </DialogFooter>
         </DialogContent>
