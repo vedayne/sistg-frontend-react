@@ -971,7 +971,7 @@ export default function ProyectosPage() {
           }
         }}
       >
-        <DialogContent className="max-w-6xl md:max-w-7xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-6xl lg:max-w-7xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
           </DialogHeader>
@@ -1226,7 +1226,7 @@ export default function ProyectosPage() {
                             }}
                           >
                             <p className="font-medium">{t.nombreCompleto}</p>
-                            <p className="text-xs text-muted-foreground">{t.email || t.codDocente || t.idSaga}</p>
+                          <p className="text-xs text-muted-foreground break-all">{t.email || t.codDocente || t.idSaga}</p>
                           </div>
                         ))}
                       </div>

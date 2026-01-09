@@ -5,6 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { apiClient, API_BASE_URL } from "@/lib/api-client"
+import type { Semester } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -13,10 +14,20 @@ import { Camera, Lock, LogOut, Smartphone, Copy } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ProfilePage() {
-  const { user, loading, updatePassword, fetchSessions, logoutAllDevices, logoutDevice, uploadProfileImage, sessions } =
-    useAuth()
+  const {
+    user,
+    loading,
+    updatePassword,
+    fetchSessions,
+    logoutAllDevices,
+    logoutDevice,
+    uploadProfileImage,
+    refreshProfile,
+    sessions,
+  } = useAuth()
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -38,6 +49,13 @@ export default function ProfilePage() {
     new: false,
     confirm: false,
   })
+  const [semestres, setSemestres] = useState<Semester[]>([])
+  const [selectedSemestreId, setSelectedSemestreId] = useState("")
+  const [isLoadingSemestres, setIsLoadingSemestres] = useState(false)
+  const [isUpdatingSemestre, setIsUpdatingSemestre] = useState(false)
+  const [semestreMessage, setSemestreMessage] = useState("")
+  const [semestreError, setSemestreError] = useState("")
+  const isStudent = Boolean(user?.academico?.codAlumno)
 
   useEffect(() => {
     let objectUrl: string | null = null
@@ -84,6 +102,47 @@ export default function ProfilePage() {
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [user?.imageUrl, user?.fotoPerfil?.remotepath])
+
+  useEffect(() => {
+    if (!user || !isStudent) return
+
+    let isActive = true
+
+    const loadSemestres = async () => {
+      try {
+        setIsLoadingSemestres(true)
+        const res = await apiClient.semesters.list()
+        const data = Array.isArray(res) ? res : (res as any).data || []
+        if (isActive) {
+          setSemestres(data)
+        }
+      } catch (err) {
+        if (isActive) {
+          const message = err instanceof Error ? err.message : "No se pudieron cargar los semestres"
+          setSemestreError(message)
+        }
+      } finally {
+        if (isActive) setIsLoadingSemestres(false)
+      }
+    }
+
+    loadSemestres()
+
+    return () => {
+      isActive = false
+    }
+  }, [user, isStudent])
+
+  useEffect(() => {
+    if (!user || !isStudent) return
+
+    const semestre = user.academico?.semestreActual
+    if (typeof semestre === "object" && semestre?.id) {
+      setSelectedSemestreId(String(semestre.id))
+    } else if (semestre === null || semestre === undefined) {
+      setSelectedSemestreId("")
+    }
+  }, [user, isStudent, user?.academico?.semestreActual])
 
   useEffect(() => {
     if (activeTab === "sesiones") {
@@ -162,6 +221,29 @@ export default function ProfilePage() {
     }
   }
 
+  const handleUpdateSemestre = async () => {
+    if (!selectedSemestreId) {
+      setSemestreError("Selecciona un semestre válido")
+      setSemestreMessage("")
+      return
+    }
+
+    setSemestreError("")
+    setSemestreMessage("")
+    setIsUpdatingSemestre(true)
+
+    try {
+      await apiClient.profile.updateSemester(Number(selectedSemestreId))
+      await refreshProfile()
+      setSemestreMessage("Semestre actualizado correctamente")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo actualizar el semestre"
+      setSemestreError(message)
+    } finally {
+      setIsUpdatingSemestre(false)
+    }
+  }
+
   const handleChangePassword = async () => {
     setPasswordError("")
     setPasswordSuccess("")
@@ -207,6 +289,11 @@ export default function ProfilePage() {
     const semestre = user.academico?.semestreActual
     if (typeof semestre === "string" || semestre === null || semestre === undefined) return semestre
     return semestre.name || semestre.code
+  })()
+  const semestreActualId = (() => {
+    const semestre = user.academico?.semestreActual
+    if (typeof semestre === "object" && semestre?.id) return String(semestre.id)
+    return ""
   })()
 
   const parseUserAgent = (ua: string) => {
@@ -392,9 +479,50 @@ export default function ProfilePage() {
                   </p>
                 </div>
                 {userType === "estudiante" && (
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Semestre Actual</label>
-                    <p className="font-medium text-foreground">{semestreActual || "N/A"}</p>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-muted-foreground">Semestre Actual</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Select
+                        value={selectedSemestreId}
+                        onValueChange={(value) => {
+                          setSelectedSemestreId(value)
+                          setSemestreError("")
+                          setSemestreMessage("")
+                        }}
+                        disabled={isLoadingSemestres || isUpdatingSemestre}
+                      >
+                        <SelectTrigger className="w-full sm:w-52">
+                          <SelectValue
+                            placeholder={isLoadingSemestres ? "Cargando..." : semestreActual || "Selecciona semestre"}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {semestres.length > 0 ? (
+                            semestres.map((sem) => (
+                              <SelectItem key={sem.id} value={String(sem.id)}>
+                                {sem.name} ({sem.code})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="empty" disabled>
+                              Sin semestres
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={handleUpdateSemestre}
+                        disabled={
+                          isUpdatingSemestre ||
+                          !selectedSemestreId ||
+                          selectedSemestreId === semestreActualId
+                        }
+                      >
+                        {isUpdatingSemestre ? "Guardando..." : "Guardar"}
+                      </Button>
+                    </div>
+                    {semestreMessage && <p className="text-xs text-green-600 dark:text-green-400">{semestreMessage}</p>}
+                    {semestreError && <p className="text-xs text-red-600 dark:text-red-400">{semestreError}</p>}
                   </div>
                 )}
                 {userType === "docente" && (

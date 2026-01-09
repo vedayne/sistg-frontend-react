@@ -230,6 +230,12 @@ export const apiClient = {
         body: JSON.stringify({ currentPassword, newPassword }),
       }),
 
+    updateSemester: async (semestreId: number) =>
+      apiClient.request<{ message: string; data?: Semester | null }>("/profile/semestre", {
+        method: "PATCH",
+        body: JSON.stringify({ semestreId }),
+      }),
+
     uploadImage: async (image: File) => {
       const formData = new FormData()
       formData.append("image", image)
