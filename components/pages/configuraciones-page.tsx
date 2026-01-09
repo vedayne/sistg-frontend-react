@@ -10,10 +10,10 @@ import { apiClient } from "@/lib/api-client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { Label } from "@/components/ui/label"
-import type { RoleInfo, Phase, Gestion, ResearchLine, Semester } from "@/lib/types"
+import type { RoleInfo, Phase, Gestion, ResearchLine, Semester, TypeDoc } from "@/lib/types"
 import { CenteredLoader } from "@/components/ui/centered-loader"
 
-type EditableType = "fase" | "gestion" | "linea" | "semestre" | "area" | "modalidad"
+type EditableType = "fase" | "gestion" | "linea" | "semestre" | "area" | "modalidad" | "tipoDoc"
 
 type EditingState = {
   type: EditableType
@@ -27,11 +27,12 @@ const emptyForm: Record<EditableType, any> = {
   semestre: { code: "", name: "" },
   area: { name: "" },
   modalidad: { name: "", description: "" },
+  tipoDoc: { name: "", description: "" },
 }
 
 export default function ConfiguracionesPage() {
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState<"roles" | "fases" | "gestion" | "semestres" | "modalidades" | "investigacion">("roles")
+  const [activeTab, setActiveTab] = useState<"roles" | "fases" | "gestion" | "semestres" | "modalidades" | "investigacion" | "tipos-doc">("roles")
   const [loading, setLoading] = useState(false)
 
   const [roles, setRoles] = useState<RoleInfo[]>([])
@@ -41,6 +42,7 @@ export default function ConfiguracionesPage() {
   const [semestres, setSemestres] = useState<Semester[]>([])
   const [areas, setAreas] = useState<any[]>([])
   const [modalidades, setModalidades] = useState<any[]>([])
+  const [typeDocs, setTypeDocs] = useState<TypeDoc[]>([])
 
   const [editing, setEditing] = useState<EditingState | null>(null)
   const [formData, setFormData] = useState<any>(emptyForm.fase)
@@ -72,6 +74,10 @@ export default function ConfiguracionesPage() {
         const modRes = await apiClient.modalidades.list()
         setModalidades((modRes as any).data || modRes || [])
       }
+      if (activeTab === "tipos-doc") {
+        const typesRes = await apiClient.typeDocs.list()
+        setTypeDocs(typesRes || [])
+      }
     } catch (err) {
       console.error(err)
       toast({ variant: "destructive", title: "No se pudo cargar la información" })
@@ -100,6 +106,7 @@ export default function ConfiguracionesPage() {
       })
     if (type === "semestre") setFormData({ code: item.code, name: item.name })
     if (type === "area") setFormData({ name: item.name })
+    if (type === "tipoDoc") setFormData({ name: item.name, description: item.description || "" })
   }
 
   const cancelEdit = () => {
@@ -148,6 +155,12 @@ export default function ConfiguracionesPage() {
         if (editing.id) await apiClient.modalidades.update(editing.id, payload)
         else await apiClient.modalidades.create(payload)
       }
+      if (editing.type === "tipoDoc") {
+        if (!formData.name) throw new Error("El nombre es obligatorio")
+        const payload = { name: formData.name, description: formData.description || undefined }
+        if (editing.id) await apiClient.typeDocs.update(editing.id, payload)
+        else await apiClient.typeDocs.create(payload)
+      }
 
       toast({ title: "Guardado correctamente" })
       setEditing(null)
@@ -188,7 +201,7 @@ export default function ConfiguracionesPage() {
             <Button variant="ghost" size="sm" onClick={() => startEdit(type, item)}>
               <Edit2 className="w-4 h-4" /> Editar
             </Button>
-            {type !== "semestre" && type !== "fase" && (
+            {type !== "semestre" && type !== "fase" && type !== "tipoDoc" && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -332,6 +345,24 @@ export default function ConfiguracionesPage() {
         </div>
       )
     }
+    if (type === "tipoDoc") {
+      return (
+        <div className="grid gap-3 mt-3">
+          <div className="grid gap-2">
+            <Label>Nombre</Label>
+            <Input value={formData.name || ""} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Descripción</Label>
+            <Input
+              value={formData.description || ""}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Opcional"
+            />
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="grid gap-3 mt-3">
         <div className="grid gap-2">
@@ -388,12 +419,13 @@ export default function ConfiguracionesPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 h-auto">
           <TabsTrigger value="roles" className="text-xs">Roles</TabsTrigger>
           <TabsTrigger value="fases" className="text-xs">Fases</TabsTrigger>
           <TabsTrigger value="gestion" className="text-xs">Gestión</TabsTrigger>
           <TabsTrigger value="semestres" className="text-xs">Semestres</TabsTrigger>
           <TabsTrigger value="modalidades" className="text-xs">Modalidades</TabsTrigger>
+          <TabsTrigger value="tipos-doc" className="text-xs">Tipos Doc.</TabsTrigger>
           <TabsTrigger value="investigacion" className="text-xs">Investigación</TabsTrigger>
         </TabsList>
 
@@ -512,6 +544,28 @@ export default function ConfiguracionesPage() {
                     {renderCardActions(m, "modalidad")}
                   </div>
                   {renderInlineForm("modalidad", m)}
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="tipos-doc" className="pt-4 space-y-3">
+          {renderCreateCard("tipoDoc", "Nuevo tipo de documento", "Nombre y descripción del tipo")}
+          {loading ? (
+            <CenteredLoader label="Cargando tipos de documento..." className="border rounded-xl bg-card" />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {typeDocs.map((t) => (
+                <div key={t.id} className="border rounded-xl p-4 bg-card shadow-sm border-l-4 border-l-primary">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold break-words">{t.name}</p>
+                      <p className="text-[11px] text-muted-foreground break-words">{t.description || "Sin descripción"}</p>
+                    </div>
+                    {renderCardActions(t, "tipoDoc")}
+                  </div>
+                  {renderInlineForm("tipoDoc", t)}
                 </div>
               ))}
             </div>
