@@ -6,6 +6,7 @@ import type {
   RoleInfo,
   Phase,
   Gestion,
+  TypeDoc,
   SpecialityInfo,
   ResearchLine,
   Semester,
@@ -719,6 +720,21 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+  },
+
+  typeDocs: {
+    list: async () =>
+      apiClient.request<{ success: boolean; data: TypeDoc[] }>("/type-doc", {}).then((res) => res.data),
+    create: async (data: { name: string; description?: string }) =>
+      apiClient.request<{ success: boolean; data: TypeDoc }>("/type-doc", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: async (id: number, data: { name?: string; description?: string }) =>
+      apiClient.request<{ success: boolean; data: TypeDoc }>(`/type-doc/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
   },
 
   documents: {

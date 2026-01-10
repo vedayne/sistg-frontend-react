@@ -192,6 +192,13 @@ export interface Phase {
   defensesCount: number
 }
 
+export interface TypeDoc {
+  id: number
+  name: string
+  description?: string | null
+  createdAt?: string
+}
+
 export interface Gestion {
   id: number
   gestion: string
