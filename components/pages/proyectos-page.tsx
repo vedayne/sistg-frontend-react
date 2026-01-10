@@ -50,6 +50,10 @@ export default function ProyectosPage() {
   const [actaHora, setActaHora] = useState("10:00")
   const [notaGenerating, setNotaGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
+  const [notaError, setNotaError] = useState("")
+  const [invError, setInvError] = useState("")
+  const [aceError, setAceError] = useState("")
+  const [actaError, setActaError] = useState("")
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -94,13 +98,25 @@ export default function ProyectosPage() {
     idEstudiante: undefined,
   })
 
-  const openPreview = async (archivoId: number, filename?: string) => {
+  const triggerDownload = (url: string, filename: string) => {
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.rel = "noopener"
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
+  const openPreview = async (archivoId: number, filename?: string, autoDownload = false) => {
     const blob = await apiClient.documents.download(archivoId)
     const url = URL.createObjectURL(blob)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
+    const resolvedName = filename || `reporte-${archivoId}.pdf`
     setPreviewUrl(url)
-    setPreviewName(filename || `reporte-${archivoId}.pdf`)
+    setPreviewName(resolvedName)
     setShowPreview(true)
+    if (autoDownload) triggerDownload(url, resolvedName)
   }
 
   const handlePreviewOpenChange = (open: boolean) => {
@@ -684,6 +700,7 @@ export default function ProyectosPage() {
                   return
                 }
                 try {
+                  setNotaError("")
                   setNotaGenerating(true)
                   const fechaLegible = detailNotaFecha
                     ? new Date(detailNotaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
@@ -694,11 +711,12 @@ export default function ProyectosPage() {
                     fecha: fechaLegible,
                     fase: faseSelected || undefined,
                   })
-                  await openPreview(resp.archivoId, resp.filename)
+                  await openPreview(resp.archivoId, resp.filename, true)
                   toast({ title: "Nota generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowNotaModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar la Nota de Servicio"
+                  setNotaError(msg)
                   toast({ variant: "destructive", title: "Error", description: msg })
                 } finally {
                   setNotaGenerating(false)
@@ -710,6 +728,7 @@ export default function ProyectosPage() {
               Generar
             </Button>
           </DialogFooter>
+          {notaError && <p className="text-xs text-red-600 mt-2">{notaError}</p>}
         </DialogContent>
       </Dialog>
 
@@ -751,6 +770,7 @@ export default function ProyectosPage() {
                   return
                 }
                 try {
+                  setInvError("")
                   setInvGenerating(true)
                   const fechaLegible = new Date(invFecha).toLocaleDateString("es-BO", {
                     day: "2-digit",
@@ -764,11 +784,12 @@ export default function ProyectosPage() {
                     destinatarioNombre: invDestNombre || detailProject.docenteTutor?.nombreCompleto || undefined,
                     destinatarioCargo: invDestCargo || undefined,
                   })
-                  await openPreview(resp.archivoId, resp.filename)
+                  await openPreview(resp.archivoId, resp.filename, true)
                   toast({ title: "Carta generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowInvitacionModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Invitación"
+                  setInvError(msg)
                   toast({ variant: "destructive", title: "Error", description: msg })
                 } finally {
                   setInvGenerating(false)
@@ -779,6 +800,7 @@ export default function ProyectosPage() {
               Generar
             </Button>
           </DialogFooter>
+          {invError && <p className="text-xs text-red-600 mt-2">{invError}</p>}
         </DialogContent>
       </Dialog>
 
@@ -812,6 +834,7 @@ export default function ProyectosPage() {
                   return
                 }
                 try {
+                  setAceError("")
                   setAceGenerating(true)
                   const fechaLegible = new Date(aceFecha).toLocaleDateString("es-BO", {
                     day: "2-digit",
@@ -823,11 +846,12 @@ export default function ProyectosPage() {
                     cite: aceCite || undefined,
                     fecha: fechaLegible,
                   })
-                  await openPreview(resp.archivoId, resp.filename)
+                  await openPreview(resp.archivoId, resp.filename, true)
                   toast({ title: "Carta generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowAceptacionModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Aceptación"
+                  setAceError(msg)
                   toast({ variant: "destructive", title: "Error", description: msg })
                 } finally {
                   setAceGenerating(false)
@@ -838,6 +862,7 @@ export default function ProyectosPage() {
               Generar
             </Button>
           </DialogFooter>
+          {aceError && <p className="text-xs text-red-600 mt-2">{aceError}</p>}
         </DialogContent>
       </Dialog>
 
@@ -890,6 +915,7 @@ export default function ProyectosPage() {
                   return
                 }
                 try {
+                  setActaError("")
                   setActaGenerating(true)
                   const fechaLarga = new Date(actaFecha).toLocaleDateString("es-BO", {
                     day: "2-digit",
@@ -904,11 +930,12 @@ export default function ProyectosPage() {
                     fechaLarga: fechaLarga || "S/F",
                     fase: faseSelected || "BORRADOR FINAL",
                   })
-                  await openPreview(resp.archivoId, resp.filename)
+                  await openPreview(resp.archivoId, resp.filename, true)
                   toast({ title: "Acta generada", description: "Se generó el PDF y se abrió la vista previa." })
                   setShowActaModal(false)
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : "No se pudo generar el Acta de Aprobación"
+                  setActaError(msg)
                   toast({ variant: "destructive", title: "Error", description: msg })
                 } finally {
                   setActaGenerating(false)
@@ -919,6 +946,7 @@ export default function ProyectosPage() {
               Generar Acta
             </Button>
           </DialogFooter>
+          {actaError && <p className="text-xs text-red-600 mt-2">{actaError}</p>}
         </DialogContent>
       </Dialog>
 
