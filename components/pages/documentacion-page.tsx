@@ -20,6 +20,7 @@ export default function DocumentacionPage() {
   const [selectedType, setSelectedType] = useState<DocumentTypeSummary | null>(null)
   const [files, setFiles] = useState<DocumentFileRecord[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
+  const [showFilesModal, setShowFilesModal] = useState(false)
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [notaForm, setNotaForm] = useState({
     idProyecto: "",
@@ -115,6 +116,7 @@ export default function DocumentacionPage() {
     setSelectedType(type)
     setFiles([])
     setFilesLoading(true)
+    setShowFilesModal(true)
     try {
       const resp = await apiClient.documents.getFilesByType(type.tipoDocumentoId)
       setFiles(resp.data.archivos || [])
@@ -122,6 +124,15 @@ export default function DocumentacionPage() {
       const msg = err instanceof Error ? err.message : "No se pudieron cargar los archivos de este tipo"
       toast({ variant: "destructive", title: "Error", description: msg })
     } finally {
+      setFilesLoading(false)
+    }
+  }
+
+  const handleFilesModalOpenChange = (open: boolean) => {
+    setShowFilesModal(open)
+    if (!open) {
+      setSelectedType(null)
+      setFiles([])
       setFilesLoading(false)
     }
   }
@@ -200,84 +211,84 @@ export default function DocumentacionPage() {
         </CardContent>
       </Card>
 
-      {selectedType && (
-        <Card className="border-primary/30">
-          <CardHeader>
-            <CardTitle className="text-primary">
-              Archivos: {selectedType.tipoDocumento} ({selectedType.cantidadArchivos})
-            </CardTitle>
-            <CardDescription>Historial de archivos registrados para este tipo.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {filesLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : files.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay archivos registrados para este tipo.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40">
-                      <th className="text-left py-2 px-2 font-semibold">Archivo</th>
-                      <th className="text-left py-2 px-2 font-semibold">Usuario</th>
-                      <th className="text-left py-2 px-2 font-semibold">Fecha</th>
-                      <th className="text-left py-2 px-2 font-semibold">Acciones</th>
+      <Dialog open={showFilesModal} onOpenChange={handleFilesModalOpenChange}>
+        <DialogContent className="max-w-7xl w-[98vw]">
+          <DialogHeader>
+            <DialogTitle className="text-primary">
+              {selectedType ? `Archivos: ${selectedType.tipoDocumento}` : "Archivos"}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedType && (
+            <p className="text-xs text-muted-foreground">
+              Total: {selectedType.cantidadArchivos} archivo(s)
+            </p>
+          )}
+          {filesLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : files.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay archivos registrados para este tipo.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-fixed">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="text-left py-2 px-2 font-semibold w-[45%]">Archivo</th>
+                    <th className="text-left py-2 px-2 font-semibold w-[30%]">Fecha</th>
+                    <th className="text-left py-2 px-2 font-semibold w-[25%]">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {files.map((file) => (
+                    <tr key={file.id} className="border-b last:border-0">
+                      <td className="py-2 px-2 max-w-[420px] truncate" title={file.originalName}>
+                        {file.originalName}
+                      </td>
+                      <td className="py-2 px-2 text-muted-foreground">
+                        {new Date(file.createdAt).toLocaleString("es-BO", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-primary"
+                            onClick={async () => {
+                              try {
+                                await openPreview(file.id, file.originalName)
+                              } catch (err) {
+                                const msg = err instanceof Error ? err.message : "No se pudo abrir la vista previa"
+                                toast({ variant: "destructive", title: "Error", description: msg })
+                              }
+                            }}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-primary"
+                            onClick={() => downloadArchivo(file.id, file.originalName)}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {files.map((file) => (
-                      <tr key={file.id} className="border-b last:border-0">
-                        <td className="py-2 px-2">{file.originalName}</td>
-                        <td className="py-2 px-2 text-muted-foreground">{file.usuario?.nombreCompleto || "N/A"}</td>
-                        <td className="py-2 px-2 text-muted-foreground">
-                          {new Date(file.createdAt).toLocaleString("es-BO", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </td>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-primary"
-                              onClick={async () => {
-                                try {
-                                  await openPreview(file.id, file.originalName)
-                                } catch (err) {
-                                  const msg = err instanceof Error ? err.message : "No se pudo abrir la vista previa"
-                                  toast({ variant: "destructive", title: "Error", description: msg })
-                                }
-                              }}
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              Ver
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-primary"
-                              onClick={() => downloadArchivo(file.id, file.originalName)}
-                            >
-                              <Download className="w-4 h-4 mr-1" />
-                              Descargar
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Nota de Servicio */}
       <Dialog open={showNotaModal} onOpenChange={setShowNotaModal}>
