@@ -674,6 +674,8 @@ export const apiClient = {
       idProyecto: number
       cite: string
       fecha: string
+      fechaDefensa: string
+      horaDefensa: string
       fase?: string
     }) =>
       apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(

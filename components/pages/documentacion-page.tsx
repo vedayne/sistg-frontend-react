@@ -29,6 +29,8 @@ export default function DocumentacionPage() {
     idProyecto: "",
     cite: "",
     fecha: new Date().toISOString().slice(0, 10),
+    fechaDefensa: new Date().toISOString().slice(0, 10),
+    horaDefensa: "12:00",
     fase: "",
   })
   const [showActaModal, setShowActaModal] = useState(false)
@@ -352,6 +354,22 @@ export default function DocumentacionPage() {
               />
             </div>
             <div className="grid gap-2">
+              <Label>Fecha de defensa</Label>
+              <Input
+                type="date"
+                value={notaForm.fechaDefensa}
+                onChange={(e) => setNotaForm({ ...notaForm, fechaDefensa: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Hora de defensa</Label>
+              <Input
+                type="time"
+                value={notaForm.horaDefensa}
+                onChange={(e) => setNotaForm({ ...notaForm, horaDefensa: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
               <Label>Fase (opcional)</Label>
               <Select
                 value={notaForm.fase}
@@ -382,8 +400,11 @@ export default function DocumentacionPage() {
             <Button
               disabled={notaLoading}
               onClick={async () => {
-                if (!notaForm.idProyecto || !notaForm.cite || !notaForm.fecha) {
-                  toast({ variant: "destructive", title: "ID de proyecto, CITE y fecha son obligatorios" })
+                if (!notaForm.idProyecto || !notaForm.cite || !notaForm.fecha || !notaForm.fechaDefensa || !notaForm.horaDefensa) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, CITE, fecha, fecha de defensa y hora son obligatorios",
+                  })
                   return
                 }
                 try {
@@ -393,10 +414,17 @@ export default function DocumentacionPage() {
                     month: "long",
                     year: "numeric",
                   })
+                  const fechaDefensaLegible = new Date(notaForm.fechaDefensa).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
                   const resp = await apiClient.reportes.notaServicio({
                     idProyecto: Number(notaForm.idProyecto),
                     cite: notaForm.cite,
                     fecha: fechaLegible,
+                    fechaDefensa: fechaDefensaLegible,
+                    horaDefensa: notaForm.horaDefensa,
                     fase: notaForm.fase || undefined,
                   })
                   await openPreview(resp.archivoId, resp.filename)

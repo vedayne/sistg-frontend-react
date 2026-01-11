@@ -26,6 +26,8 @@ export default function ProyectosPage() {
   const [detailProject, setDetailProject] = useState<ProjectResponseDto | null>(null)
   const [detailActive, setDetailActive] = useState<boolean>(true)
   const [detailNotaFecha, setDetailNotaFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [detailNotaFechaDefensa, setDetailNotaFechaDefensa] = useState(() => new Date().toISOString().slice(0, 10))
+  const [detailNotaHoraDefensa, setDetailNotaHoraDefensa] = useState("12:00")
   const [detailNotaCite, setDetailNotaCite] = useState("")
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [phases, setPhases] = useState<Phase[]>([])
@@ -188,6 +190,8 @@ export default function ProyectosPage() {
       setDetailActive(!!proj?.isActive)
       const today = new Date().toISOString().slice(0, 10)
       setDetailNotaFecha(today)
+      setDetailNotaFechaDefensa(today)
+      setDetailNotaHoraDefensa("12:00")
       setDetailNotaCite(`CITE-${proj?.id ?? projectId}-${new Date().getFullYear()}`)
       setFaseSelected(phases[0]?.name || "")
       setShowNotaModal(false)
@@ -289,7 +293,7 @@ export default function ProyectosPage() {
       }
       loadPhases()
     }
-  }, [showNotaModal, phases.length])
+  }, [showNotaModal, showActaModal, phases.length])
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este proyecto?")) return
@@ -593,6 +597,8 @@ export default function ProyectosPage() {
                     onClick={() => {
                       const today = new Date().toISOString().slice(0, 10)
                       setDetailNotaFecha(today)
+                      setDetailNotaFechaDefensa(today)
+                      setDetailNotaHoraDefensa("12:00")
                       setDetailNotaCite(`CITE-${detailProject.id}-${new Date().getFullYear()}`)
                       setFaseSelected(phases[0]?.name || "")
                       setShowNotaModal(true)
@@ -675,6 +681,24 @@ export default function ProyectosPage() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="nota-fecha-defensa">Fecha de defensa</Label>
+              <Input
+                id="nota-fecha-defensa"
+                type="date"
+                value={detailNotaFechaDefensa}
+                onChange={(e) => setDetailNotaFechaDefensa(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="nota-hora-defensa">Hora de defensa</Label>
+              <Input
+                id="nota-hora-defensa"
+                type="time"
+                value={detailNotaHoraDefensa}
+                onChange={(e) => setDetailNotaHoraDefensa(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
               <Label>Fase / Borrador</Label>
               <Select value={faseSelected} onValueChange={setFaseSelected}>
                 <SelectTrigger>
@@ -695,8 +719,8 @@ export default function ProyectosPage() {
             <Button
               onClick={async () => {
                 if (!detailProject) return
-                if (!detailNotaCite) {
-                  toast({ variant: "destructive", title: "CITE es obligatorio" })
+                if (!detailNotaCite || !detailNotaFecha || !detailNotaFechaDefensa || !detailNotaHoraDefensa) {
+                  toast({ variant: "destructive", title: "CITE, fecha y datos de defensa son obligatorios" })
                   return
                 }
                 try {
@@ -705,10 +729,15 @@ export default function ProyectosPage() {
                   const fechaLegible = detailNotaFecha
                     ? new Date(detailNotaFecha).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
                     : ""
+                  const fechaDefensaLegible = detailNotaFechaDefensa
+                    ? new Date(detailNotaFechaDefensa).toLocaleDateString("es-BO", { day: "2-digit", month: "long", year: "numeric" })
+                    : ""
                   const resp = await apiClient.reportes.notaServicio({
                     idProyecto: detailProject.id,
                     cite: detailNotaCite,
                     fecha: fechaLegible,
+                    fechaDefensa: fechaDefensaLegible,
+                    horaDefensa: detailNotaHoraDefensa,
                     fase: faseSelected || undefined,
                   })
                   await openPreview(resp.archivoId, resp.filename, true)
