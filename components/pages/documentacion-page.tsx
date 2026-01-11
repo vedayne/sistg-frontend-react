@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { apiClient } from "@/lib/api-client"
-import type { DocumentTypeSummaryResponse, DocumentTypeSummary, DocumentFileRecord } from "@/lib/types"
+import type { DocumentTypeSummaryResponse, DocumentTypeSummary, DocumentFileRecord, Phase } from "@/lib/types"
 
 export default function DocumentacionPage() {
   const { toast } = useToast()
@@ -21,6 +22,8 @@ export default function DocumentacionPage() {
   const [files, setFiles] = useState<DocumentFileRecord[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
   const [showFilesModal, setShowFilesModal] = useState(false)
+  const [phases, setPhases] = useState<Phase[]>([])
+  const [phasesLoading, setPhasesLoading] = useState(false)
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [notaForm, setNotaForm] = useState({
     idProyecto: "",
@@ -111,6 +114,32 @@ export default function DocumentacionPage() {
     }
     fetchSummary()
   }, [])
+
+  useEffect(() => {
+    if (phases.length > 0) return
+    const fetchPhases = async () => {
+      setPhasesLoading(true)
+      try {
+        const resp = await apiClient.phases.list()
+        setPhases(resp as Phase[])
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "No se pudieron cargar las fases"
+        toast({ variant: "destructive", title: "Error", description: msg })
+      } finally {
+        setPhasesLoading(false)
+      }
+    }
+    fetchPhases()
+  }, [phases.length, toast])
+
+  useEffect(() => {
+    if (phases.length === 0) return
+    setActaForm((prev) => {
+      const hasMatch = prev.fase && phases.some((fase) => fase.name === prev.fase)
+      if (hasMatch) return prev
+      return { ...prev, fase: phases[0]?.name || "" }
+    })
+  }, [phases])
 
   const fetchFilesByType = async (type: DocumentTypeSummary) => {
     setSelectedType(type)
@@ -324,11 +353,25 @@ export default function DocumentacionPage() {
             </div>
             <div className="grid gap-2">
               <Label>Fase (opcional)</Label>
-              <Input
+              <Select
                 value={notaForm.fase}
-                onChange={(e) => setNotaForm({ ...notaForm, fase: e.target.value })}
-                placeholder="Ej. BORRADOR FINAL"
-              />
+                onValueChange={(value) => setNotaForm({ ...notaForm, fase: value })}
+                disabled={phasesLoading || phases.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={phasesLoading ? "Cargando fases..." : "Selecciona fase"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((fase) => (
+                    <SelectItem key={fase.id} value={fase.name}>
+                      {fase.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!phasesLoading && phases.length === 0 && (
+                <p className="text-xs text-muted-foreground">No hay fases registradas. Crea una en Configuraciones.</p>
+              )}
             </div>
             <div className="col-span-full text-xs text-muted-foreground">
               Los nombres de postulante, tutor y revisores se obtienen del proyecto en el backend.
@@ -572,7 +615,25 @@ export default function DocumentacionPage() {
             </div>
             <div className="grid gap-2">
               <Label>Fase</Label>
-              <Input value={actaForm.fase} onChange={(e) => setActaForm({ ...actaForm, fase: e.target.value })} />
+              <Select
+                value={actaForm.fase}
+                onValueChange={(value) => setActaForm({ ...actaForm, fase: value })}
+                disabled={phasesLoading || phases.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={phasesLoading ? "Cargando fases..." : "Selecciona fase"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((fase) => (
+                    <SelectItem key={fase.id} value={fase.name}>
+                      {fase.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!phasesLoading && phases.length === 0 && (
+                <p className="text-xs text-muted-foreground">No hay fases registradas. Crea una en Configuraciones.</p>
+              )}
             </div>
             <div className="col-span-full text-xs text-muted-foreground">
               Los datos de postulante, revisores, tutor y DocTG se obtienen automáticamente del proyecto en backend.
