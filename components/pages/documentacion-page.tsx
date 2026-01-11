@@ -243,7 +243,7 @@ export default function DocumentacionPage() {
       </Card>
 
       <Dialog open={showFilesModal} onOpenChange={handleFilesModalOpenChange}>
-        <DialogContent className="max-w-7xl w-[98vw]">
+        <DialogContent className="max-w-7xl w-[98vw] max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-primary">
               {selectedType ? `Archivos: ${selectedType.tipoDocumento}` : "Archivos"}
@@ -261,7 +261,7 @@ export default function DocumentacionPage() {
           ) : files.length === 0 ? (
             <p className="text-sm text-muted-foreground">No hay archivos registrados para este tipo.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="max-h-[65vh] overflow-y-auto overflow-x-auto">
               <table className="w-full text-sm table-fixed">
                 <thead>
                   <tr className="border-b bg-muted/40">
