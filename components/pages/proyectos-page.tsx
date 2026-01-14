@@ -80,14 +80,21 @@ export default function ProyectosPage() {
   const [notaGenerating, setNotaGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
   const [memoGenerating, setMemoGenerating] = useState(false)
+  const [avalGenerating, setAvalGenerating] = useState(false)
   const [notaError, setNotaError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
   const [actaError, setActaError] = useState("")
   const [memoError, setMemoError] = useState("")
+  const [avalError, setAvalError] = useState("")
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
+
+  const [showAvalModal, setShowAvalModal] = useState(false)
+  const [avalFecha, setAvalFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [avalFase, setAvalFase] = useState("")
+  const [avalFirmante, setAvalFirmante] = useState<"tg" | "tutor" | "rev1" | "rev2">("tg")
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -368,13 +375,14 @@ export default function ProyectosPage() {
   }, [showCreateModal, isStudent, user?.academico?.idSaga])
 
   useEffect(() => {
-    if ((showNotaModal || showActaModal) && phases.length === 0) {
+    if ((showNotaModal || showActaModal || showAvalModal) && phases.length === 0) {
       const loadPhases = async () => {
         try {
           setPhasesLoading(true)
           const res = await apiClient.phases.list()
           setPhases(res as any)
           setFaseSelected((res as any)[0]?.name || "")
+          setAvalFase((res as any)[0]?.name || "")
         } catch (err) {
           console.error(err)
         } finally {
@@ -383,7 +391,7 @@ export default function ProyectosPage() {
       }
       loadPhases()
     }
-  }, [showNotaModal, showActaModal, phases.length])
+  }, [showNotaModal, showActaModal, showAvalModal, phases.length])
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este proyecto?")) return
@@ -958,6 +966,18 @@ export default function ProyectosPage() {
                   >
                     Memorandum Aviso
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
+                      setAvalFecha(today)
+                      setAvalFase(phases[0]?.name || "")
+                      setAvalFirmante("tg")
+                      setShowAvalModal(true)
+                    }}
+                  >
+                    Aval
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1376,6 +1396,94 @@ export default function ProyectosPage() {
             </Button>
           </DialogFooter>
           {memoError && <p className="text-xs text-red-600 mt-2">{memoError}</p>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Aval */}
+      <Dialog open={showAvalModal} onOpenChange={setShowAvalModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generar Aval</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={avalFecha} onChange={(e) => setAvalFecha(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Select value={avalFase} onValueChange={setAvalFase}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona fase" />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((f) => (
+                    <SelectItem key={f.id} value={f.name}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Firmante</Label>
+              <Select value={avalFirmante} onValueChange={(v) => setAvalFirmante(v as typeof avalFirmante)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona firmante" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tg">Docente TG</SelectItem>
+                  <SelectItem value="tutor">Tutor</SelectItem>
+                  <SelectItem value="rev1">Revisor 1</SelectItem>
+                  <SelectItem value="rev2">Revisor 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowAvalModal(false)}>Cancelar</Button>
+            <Button
+              disabled={!detailProject || avalGenerating}
+              onClick={async () => {
+                if (!detailProject) {
+                  toast({ variant: "destructive", title: "Sin proyecto cargado" })
+                  return
+                }
+                if (!avalFecha || !avalFase) {
+                  toast({ variant: "destructive", title: "Fecha y fase son obligatorias" })
+                  return
+                }
+                try {
+                  setAvalError("")
+                  setAvalGenerating(true)
+                  const fechaLegible = new Date(avalFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.aval({
+                    idProyecto: detailProject.id,
+                    fecha: fechaLegible,
+                    fase: avalFase,
+                    firmante: avalFirmante,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Aval generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowAvalModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Aval"
+                  setAvalError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setAvalGenerating(false)
+                }
+              }}
+            >
+              {avalGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {avalError && <p className="text-xs text-red-600 mt-2">{avalError}</p>}
         </DialogContent>
       </Dialog>
 

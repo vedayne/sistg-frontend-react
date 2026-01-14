@@ -45,6 +45,7 @@ export default function DocumentacionPage() {
   const [showCartaInvModal, setShowCartaInvModal] = useState(false)
   const [showCartaAceModal, setShowCartaAceModal] = useState(false)
   const [showMemoModal, setShowMemoModal] = useState(false)
+  const [showAvalModal, setShowAvalModal] = useState(false)
   const [cartaInvForm, setCartaInvForm] = useState({
     idProyecto: "",
     cite: "",
@@ -65,11 +66,18 @@ export default function DocumentacionPage() {
     fechaDefensa: new Date().toISOString().slice(0, 10),
     horaDefensa: "12:00",
   })
+  const [avalForm, setAvalForm] = useState({
+    idProyecto: "",
+    fecha: new Date().toISOString().slice(0, 10),
+    fase: "",
+    firmante: "tg" as "tg" | "tutor" | "rev1" | "rev2",
+  })
   const [notaLoading, setNotaLoading] = useState(false)
   const [actaLoading, setActaLoading] = useState(false)
   const [cartaInvLoading, setCartaInvLoading] = useState(false)
   const [cartaAceLoading, setCartaAceLoading] = useState(false)
   const [memoLoading, setMemoLoading] = useState(false)
+  const [avalLoading, setAvalLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -151,6 +159,11 @@ export default function DocumentacionPage() {
       if (hasMatch) return prev
       return { ...prev, fase: phases[0]?.name || "" }
     })
+    setAvalForm((prev) => {
+      const hasMatch = prev.fase && phases.some((fase) => fase.name === prev.fase)
+      if (hasMatch) return prev
+      return { ...prev, fase: phases[0]?.name || "" }
+    })
   }, [phases])
 
   const fetchFilesByType = async (type: DocumentTypeSummary) => {
@@ -199,6 +212,9 @@ export default function DocumentacionPage() {
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowMemoModal(true)}>
           <FilePlus className="w-4 h-4" /> Memorandum Aviso de Defensa
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowAvalModal(true)}>
+          <FilePlus className="w-4 h-4" /> Aval
         </Button>
       </div>
 
@@ -826,6 +842,112 @@ export default function DocumentacionPage() {
               }}
             >
               {memoLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Aval */}
+      <Dialog open={showAvalModal} onOpenChange={setShowAvalModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Generar Aval</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={avalForm.idProyecto}
+                onChange={(e) => setAvalForm({ ...avalForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={avalForm.fecha}
+                onChange={(e) => setAvalForm({ ...avalForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Select
+                value={avalForm.fase}
+                onValueChange={(value) => setAvalForm({ ...avalForm, fase: value })}
+                disabled={phasesLoading || phases.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={phasesLoading ? "Cargando fases..." : "Selecciona fase"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((fase) => (
+                    <SelectItem key={fase.id} value={fase.name}>
+                      {fase.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Firmante</Label>
+              <Select
+                value={avalForm.firmante}
+                onValueChange={(value) =>
+                  setAvalForm({ ...avalForm, firmante: value as "tg" | "tutor" | "rev1" | "rev2" })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona firmante" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tg">Docente TG</SelectItem>
+                  <SelectItem value="tutor">Tutor</SelectItem>
+                  <SelectItem value="rev1">Revisor 1</SelectItem>
+                  <SelectItem value="rev2">Revisor 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-full text-xs text-muted-foreground">
+              El nombre del estudiante, carrera y jefe de carrera se obtienen del proyecto en el backend.
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowAvalModal(false)}>Cancelar</Button>
+            <Button
+              disabled={avalLoading}
+              onClick={async () => {
+                if (!avalForm.idProyecto || !avalForm.fecha || !avalForm.fase || !avalForm.firmante) {
+                  toast({ variant: "destructive", title: "ID de proyecto, fecha, fase y firmante son obligatorios" })
+                  return
+                }
+                try {
+                  setAvalLoading(true)
+                  const fechaLegible = new Date(avalForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.aval({
+                    idProyecto: Number(avalForm.idProyecto),
+                    fecha: fechaLegible,
+                    fase: avalForm.fase,
+                    firmante: avalForm.firmante,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Aval generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowAvalModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Aval"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setAvalLoading(false)
+                }
+              }}
+            >
+              {avalLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>

@@ -737,6 +737,19 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    aval: async (data: {
+      idProyecto: number
+      fecha: string
+      fase: string
+      firmante: "tg" | "tutor" | "rev1" | "rev2"
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/aval",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
   },
 
   typeDocs: {
