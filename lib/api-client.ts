@@ -722,6 +722,21 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    memoAvisoDefensa: async (data: {
+      idProyecto: number
+      cite: string
+      ciudad: string
+      fecha: string
+      fechaDefensa: string
+      horaDefensa: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/memo-aviso-defensa",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
   },
 
   typeDocs: {

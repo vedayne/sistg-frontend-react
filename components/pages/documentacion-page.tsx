@@ -44,6 +44,7 @@ export default function DocumentacionPage() {
   })
   const [showCartaInvModal, setShowCartaInvModal] = useState(false)
   const [showCartaAceModal, setShowCartaAceModal] = useState(false)
+  const [showMemoModal, setShowMemoModal] = useState(false)
   const [cartaInvForm, setCartaInvForm] = useState({
     idProyecto: "",
     cite: "",
@@ -56,10 +57,19 @@ export default function DocumentacionPage() {
     cite: "",
     fecha: new Date().toISOString().slice(0, 10),
   })
+  const [memoForm, setMemoForm] = useState({
+    idProyecto: "",
+    cite: "",
+    ciudad: "LA PAZ",
+    fecha: new Date().toISOString().slice(0, 10),
+    fechaDefensa: new Date().toISOString().slice(0, 10),
+    horaDefensa: "12:00",
+  })
   const [notaLoading, setNotaLoading] = useState(false)
   const [actaLoading, setActaLoading] = useState(false)
   const [cartaInvLoading, setCartaInvLoading] = useState(false)
   const [cartaAceLoading, setCartaAceLoading] = useState(false)
+  const [memoLoading, setMemoLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -186,6 +196,9 @@ export default function DocumentacionPage() {
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowCartaAceModal(true)}>
           <FilePlus className="w-4 h-4" /> Carta de Aceptación
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowMemoModal(true)}>
+          <FilePlus className="w-4 h-4" /> Memorandum Aviso de Defensa
         </Button>
       </div>
 
@@ -704,6 +717,116 @@ export default function DocumentacionPage() {
             >
               {actaLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar Acta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Memorandum Aviso de Defensa */}
+      <Dialog open={showMemoModal} onOpenChange={setShowMemoModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Generar Memorandum Aviso de Defensa</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={memoForm.idProyecto}
+                onChange={(e) => setMemoForm({ ...memoForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={memoForm.cite}
+                onChange={(e) => setMemoForm({ ...memoForm, cite: e.target.value })}
+                placeholder="Ej. MEMO-123/2024"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={memoForm.ciudad}
+                onChange={(e) => setMemoForm({ ...memoForm, ciudad: e.target.value })}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={memoForm.fecha}
+                onChange={(e) => setMemoForm({ ...memoForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha de defensa</Label>
+              <Input
+                type="date"
+                value={memoForm.fechaDefensa}
+                onChange={(e) => setMemoForm({ ...memoForm, fechaDefensa: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Hora de defensa</Label>
+              <Input
+                type="time"
+                value={memoForm.horaDefensa}
+                onChange={(e) => setMemoForm({ ...memoForm, horaDefensa: e.target.value })}
+              />
+            </div>
+            <div className="col-span-full text-xs text-muted-foreground">
+              El nombre del estudiante y la especialidad se obtienen del proyecto en el backend.
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowMemoModal(false)}>Cancelar</Button>
+            <Button
+              disabled={memoLoading}
+              onClick={async () => {
+                if (!memoForm.idProyecto || !memoForm.cite || !memoForm.ciudad || !memoForm.fecha || !memoForm.fechaDefensa || !memoForm.horaDefensa) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, CITE, ciudad, fecha y datos de defensa son obligatorios",
+                  })
+                  return
+                }
+                try {
+                  setMemoLoading(true)
+                  const fechaLegible = new Date(memoForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const fechaDefensaLegible = new Date(memoForm.fechaDefensa).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.memoAvisoDefensa({
+                    idProyecto: Number(memoForm.idProyecto),
+                    cite: memoForm.cite,
+                    ciudad: memoForm.ciudad,
+                    fecha: fechaLegible,
+                    fechaDefensa: fechaDefensaLegible,
+                    horaDefensa: memoForm.horaDefensa,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Memorandum generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowMemoModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Memorandum"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setMemoLoading(false)
+                }
+              }}
+            >
+              {memoLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -23,12 +23,33 @@ export default function ProyectosPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailSaving, setDetailSaving] = useState(false)
   const [detailProject, setDetailProject] = useState<ProjectResponseDto | null>(null)
   const [detailActive, setDetailActive] = useState<boolean>(true)
   const [detailNotaFecha, setDetailNotaFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [detailNotaFechaDefensa, setDetailNotaFechaDefensa] = useState(() => new Date().toISOString().slice(0, 10))
   const [detailNotaHoraDefensa, setDetailNotaHoraDefensa] = useState("12:00")
   const [detailNotaCite, setDetailNotaCite] = useState("")
+  const [detailForm, setDetailForm] = useState({
+    titulo: "",
+    idLineaInv: 0,
+    idGestion: 0,
+    idModalidad: 0,
+  })
+  const [detailAssignTarget, setDetailAssignTarget] = useState<"tg" | "tutor" | "rev1" | "rev2">("tg")
+  const [detailTeacherSearchTerm, setDetailTeacherSearchTerm] = useState("")
+  const [detailTeacherResults, setDetailTeacherResults] = useState<DocenteBasicInfo[]>([])
+  const [detailTeacherSearchLoading, setDetailTeacherSearchLoading] = useState(false)
+  const [detailSelectedTeachers, setDetailSelectedTeachers] = useState<{
+    tg: DocenteBasicInfo | null
+    tutor: DocenteBasicInfo | null
+    rev1: DocenteBasicInfo | null
+    rev2: DocenteBasicInfo | null
+  }>({ tg: null, tutor: null, rev1: null, rev2: null })
+  const [detailJefeSearchTerm, setDetailJefeSearchTerm] = useState("")
+  const [detailJefeResults, setDetailJefeResults] = useState<UserBasicInfo[]>([])
+  const [detailJefeLoading, setDetailJefeLoading] = useState(false)
+  const [detailSelectedJefe, setDetailSelectedJefe] = useState<UserBasicInfo | null>(null)
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
@@ -50,12 +71,20 @@ export default function ProyectosPage() {
   const [actaCite, setActaCite] = useState("")
   const [actaFecha, setActaFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [actaHora, setActaHora] = useState("10:00")
+  const [showMemoModal, setShowMemoModal] = useState(false)
+  const [memoCite, setMemoCite] = useState("")
+  const [memoCiudad, setMemoCiudad] = useState("LA PAZ")
+  const [memoFecha, setMemoFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [memoFechaDefensa, setMemoFechaDefensa] = useState(() => new Date().toISOString().slice(0, 10))
+  const [memoHoraDefensa, setMemoHoraDefensa] = useState("12:00")
   const [notaGenerating, setNotaGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
+  const [memoGenerating, setMemoGenerating] = useState(false)
   const [notaError, setNotaError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
   const [actaError, setActaError] = useState("")
+  const [memoError, setMemoError] = useState("")
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -188,6 +217,33 @@ export default function ProyectosPage() {
       const proj = (res as any).data || res
       setDetailProject(proj)
       setDetailActive(!!proj?.isActive)
+      setDetailForm({
+        titulo: proj?.titulo || "",
+        idLineaInv: proj?.lineaInvestigacion?.id || 0,
+        idGestion: proj?.gestion?.id || 0,
+        idModalidad: proj?.modalidad?.id || 0,
+      })
+      setDetailSelectedTeachers({
+        tg: proj?.docenteTG || null,
+        tutor: proj?.docenteTutor || null,
+        rev1: proj?.docenteRev1 || null,
+        rev2: proj?.docenteRev2 || null,
+      })
+      setDetailAssignTarget("tg")
+      setDetailTeacherSearchTerm("")
+      setDetailTeacherResults([])
+      setDetailSelectedJefe(
+        proj?.userJefeC
+          ? {
+            id: proj.userJefeC.id,
+            email: proj.userJefeC.email,
+            fullName: proj.userJefeC.nombreCompleto,
+            status: "ACTIVE",
+          }
+          : null,
+      )
+      setDetailJefeSearchTerm("")
+      setDetailJefeResults([])
       const today = new Date().toISOString().slice(0, 10)
       setDetailNotaFecha(today)
       setDetailNotaFechaDefensa(today)
@@ -207,8 +263,37 @@ export default function ProyectosPage() {
   const handleUpdateDetail = async () => {
     if (!detailProject) return
     try {
-      setDetailLoading(true)
-      await apiClient.projects.update(detailProject.id, { isActive: detailActive })
+      if (!detailForm.titulo || detailForm.titulo.trim().length < 10) {
+        toast({ variant: "destructive", title: "El título debe tener al menos 10 caracteres" })
+        return
+      }
+
+      if (!detailForm.idLineaInv || !detailForm.idGestion || !detailForm.idModalidad) {
+        toast({ variant: "destructive", title: "Línea, gestión y modalidad son obligatorias" })
+        return
+      }
+
+      if (!detailSelectedTeachers.tg || !detailSelectedTeachers.tutor || !detailSelectedTeachers.rev1) {
+        toast({ variant: "destructive", title: "Asigna Docente TG, Tutor y Revisor 1" })
+        return
+      }
+
+      setDetailSaving(true)
+      const payload = {
+        titulo: detailForm.titulo.trim(),
+        idLineaInv: Number(detailForm.idLineaInv),
+        idGestion: Number(detailForm.idGestion),
+        idModalidad: Number(detailForm.idModalidad),
+        idDocTG: detailSelectedTeachers.tg.id,
+        idDocTutor: detailSelectedTeachers.tutor.id,
+        idDocRev1: detailSelectedTeachers.rev1.id,
+        ...(detailSelectedTeachers.rev2 ? { idDocRev2: detailSelectedTeachers.rev2.id } : {}),
+        ...(detailSelectedJefe ? { idUserJefeC: String(detailSelectedJefe.id) } : {}),
+        isActive: detailActive,
+      }
+      const resp = await apiClient.projects.update(detailProject.id, payload)
+      const updated = (resp as any).data || resp
+      setDetailProject(updated)
       toast({ title: "Proyecto actualizado" })
       setDetailOpen(false)
       fetchData()
@@ -216,7 +301,7 @@ export default function ProyectosPage() {
       console.error(err)
       toast({ variant: "destructive", title: "No se pudo actualizar", description: err?.message })
     } finally {
-      setDetailLoading(false)
+      setDetailSaving(false)
     }
   }
 
@@ -226,7 +311,7 @@ export default function ProyectosPage() {
 
   // Load dropdown data when opening modal
   useEffect(() => {
-    if (showCreateModal) {
+    if (showCreateModal || detailOpen) {
       const loadOptions = async () => {
         try {
           const [linesRes, gestionesRes, modRes] = await Promise.all([
@@ -248,6 +333,11 @@ export default function ProyectosPage() {
         }
       }
       loadOptions()
+    }
+  }, [showCreateModal, detailOpen])
+
+  useEffect(() => {
+    if (showCreateModal) {
       if (isStudent && user?.academico?.idSaga) {
         const loadSelfStudent = async () => {
           try {
@@ -275,7 +365,7 @@ export default function ProyectosPage() {
         loadSelfStudent()
       }
     }
-  }, [showCreateModal])
+  }, [showCreateModal, isStudent, user?.academico?.idSaga])
 
   useEffect(() => {
     if ((showNotaModal || showActaModal) && phases.length === 0) {
@@ -345,6 +435,23 @@ export default function ProyectosPage() {
     }
   }
 
+  const handleSearchTeacherDetail = async (term: string) => {
+    setDetailTeacherSearchTerm(term)
+    if (term.length < 3) {
+      setDetailTeacherResults([])
+      return
+    }
+    setDetailTeacherSearchLoading(true)
+    try {
+      const res = await apiClient.teachers.list({ search: term, limit: 5 })
+      setDetailTeacherResults(res.data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setDetailTeacherSearchLoading(false)
+    }
+  }
+
   const handleSearchJefe = async (term: string) => {
     setJefeSearchTerm(term)
     if (term.length < 2) {
@@ -361,6 +468,25 @@ export default function ProyectosPage() {
       console.error(err)
     } finally {
       setJefeLoading(false)
+    }
+  }
+
+  const handleSearchJefeDetail = async (term: string) => {
+    setDetailJefeSearchTerm(term)
+    if (term.length < 2) {
+      setDetailJefeResults([])
+      return
+    }
+    setDetailJefeLoading(true)
+    try {
+      const res = await apiClient.users.list({ search: term, limit: 8, fields: "id,email,fullName,roles" })
+      const list = ((res as any).data || res || []) as UserBasicInfo[]
+      const filtered = list.filter((u) => u.roles?.some((r) => ["JEFECARRERA", "JEFE_CARRERA"].includes(r)))
+      setDetailJefeResults(filtered)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setDetailJefeLoading(false)
     }
   }
 
@@ -525,7 +651,7 @@ export default function ProyectosPage() {
 
       {/* Detail Modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-3xl max-h-9/12 overflow-y-auto">
+        <DialogContent className="!max-w-[58vw] !w-[58vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle del Proyecto</DialogTitle>
           </DialogHeader>
@@ -534,62 +660,240 @@ export default function ProyectosPage() {
               <Loader2 className="w-4 h-4 animate-spin" /> Cargando...
             </div>
           ) : detailProject ? (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Título</p>
-                <p className="font-semibold">{detailProject.titulo}</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Estudiante</p>
-                  <p className="font-medium">{detailProject.estudiante?.nombreCompleto || "-"}</p>
+            <div className="space-y-6">
+              <div className="grid gap-4 lg:grid-cols-[2fr,1fr]">
+                <div className="grid gap-2">
+                  <Label>Título del proyecto</Label>
+                  <Textarea
+                    value={detailForm.titulo}
+                    onChange={(e) => setDetailForm((prev) => ({ ...prev, titulo: e.target.value }))}
+                    className="min-h-[120px] text-base"
+                  />
+                  <p className="text-xs text-muted-foreground">Mínimo 10 caracteres.</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Gestión</p>
-                  <Badge variant="outline">{detailProject.gestion?.gestion || "-"}</Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Línea de Investigación</p>
-                  <p className="font-medium">{detailProject.lineaInvestigacion?.name || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Modalidad</p>
-                  <p className="font-medium">{detailProject.modalidad?.name || "-"}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Docente TG</p>
-                  <p className="font-medium">{detailProject.docenteTG?.nombreCompleto || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Tutor</p>
-                  <p className="font-medium">{detailProject.docenteTutor?.nombreCompleto || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Revisor 1</p>
-                  <p className="font-medium">{detailProject.docenteRev1?.nombreCompleto || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Revisor 2</p>
-                  <p className="font-medium">{detailProject.docenteRev2?.nombreCompleto || "-"}</p>
+                <div className="grid gap-3">
+                  <div className="rounded-lg border p-3 bg-muted/20">
+                    <p className="text-xs text-muted-foreground">Estudiante</p>
+                    <p className="font-medium">{detailProject.estudiante?.nombreCompleto || "-"}</p>
+                    <p className="text-xs text-muted-foreground break-all">{detailProject.estudiante?.email || ""}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Estado</Label>
+                    <Badge className={detailActive ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-700"}>
+                      {detailActive ? "Activo" : "Inactivo"}
+                    </Badge>
+                    <Select value={detailActive ? "1" : "0"} onValueChange={(v) => setDetailActive(v === "1")}>
+                      <SelectTrigger className="w-32 h-8">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Activo</SelectItem>
+                        <SelectItem value="0">Inactivo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm">Estado:</p>
-                <Badge className={detailActive ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-700"}>
-                  {detailActive ? "Activo" : "Inactivo"}
-                </Badge>
-                <Select value={detailActive ? "1" : "0"} onValueChange={(v) => setDetailActive(v === "1")}>
-                  <SelectTrigger className="w-32 h-8">
-                    <SelectValue placeholder="Estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Activo</SelectItem>
-                    <SelectItem value="0">Inactivo</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid gap-2">
+                  <Label>Línea de Investigación</Label>
+                  <Select
+                    value={String(detailForm.idLineaInv || "")}
+                    onValueChange={(v) =>
+                      setDetailForm((prev) => ({ ...prev, idLineaInv: Number(v) }))
+                    }
+                  >
+                    <SelectTrigger className="w-[200px] h-10 justify-start overflow-hidden">
+                      <SelectValue asChild placeholder="Seleccione...">
+                        <span className="w-full truncate whitespace-nowrap text-left">
+                          {researchLines.find(l => l.id === detailForm.idLineaInv)?.name || "Seleccione..."}
+                        </span>
+                      </SelectValue>
+                    </SelectTrigger>
+
+                    <SelectContent className="w-[300px]">
+                      {researchLines.map((line) => (
+                        <SelectItem key={line.id} value={String(line.id)}>
+                          {line.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Gestión</Label>
+                  <Select
+                    value={String(detailForm.idGestion || "")}
+                    onValueChange={(v) => setDetailForm((prev) => ({ ...prev, idGestion: Number(v) }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+                    <SelectContent>
+                      {gestiones.map((g) => (
+                        <SelectItem key={g.id} value={String(g.id)}>
+                          {g.gestion} {g.typeGestion ? `(${g.typeGestion})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Modalidad</Label>
+                  <Select
+                    value={String(detailForm.idModalidad || "")}
+                    onValueChange={(v) => setDetailForm((prev) => ({ ...prev, idModalidad: Number(v) }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
+                    <SelectContent>
+                      {modalidades.map((m) => (
+                        <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              <div className="grid gap-2">
+                <Label>Jefe de Carrera (opcional)</Label>
+                {detailSelectedJefe ? (
+                  <div className="flex justify-between items-center p-2 border rounded bg-muted/20">
+                    <div className="text-sm">
+                      <p className="font-medium">{detailSelectedJefe.fullName || detailSelectedJefe.email}</p>
+                      <p className="text-xs text-muted-foreground break-all">{detailSelectedJefe.email}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setDetailSelectedJefe(null)
+                      }}
+                    >
+                      Cambiar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar jefe de carrera..."
+                      className="pl-8"
+                      value={detailJefeSearchTerm}
+                      onChange={(e) => handleSearchJefeDetail(e.target.value)}
+                    />
+                    {detailJefeLoading && <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    {detailJefeResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg mt-1 max-h-40 overflow-auto">
+                        {detailJefeResults.map((j) => (
+                          <div
+                            key={j.id}
+                            className="p-2 hover:bg-muted cursor-pointer"
+                            onClick={() => {
+                              setDetailSelectedJefe(j)
+                              setDetailJefeResults([])
+                              setDetailJefeSearchTerm("")
+                            }}
+                          >
+                            <p className="font-medium">{j.fullName || j.email}</p>
+                            <p className="text-xs text-muted-foreground break-all">{j.email}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Se muestran solo usuarios con rol JEFECARRERA.</p>
+              </div>
+
+              <div className="grid gap-3 border rounded-lg p-3">
+                <p className="text-sm font-medium">Asignar docentes</p>
+                <p className="text-xs text-muted-foreground">Docente TG, Tutor y Revisor 1 son obligatorios. Revisor 2 es opcional.</p>
+
+                <div className="grid gap-2">
+                  <div className="grid md:grid-cols-[200px,1fr] gap-3 items-center">
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Asignar a</Label>
+                      <Select value={detailAssignTarget} onValueChange={(v) => setDetailAssignTarget(v as any)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona rol" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="tg">Docente TG (obligatorio)</SelectItem>
+                          <SelectItem value="tutor">Tutor (obligatorio)</SelectItem>
+                          <SelectItem value="rev1">Revisor 1 (obligatorio)</SelectItem>
+                          <SelectItem value="rev2">Revisor 2 (opcional)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por nombre, correo o código..."
+                        className="pl-8"
+                        value={detailTeacherSearchTerm}
+                        onChange={(e) => handleSearchTeacherDetail(e.target.value)}
+                      />
+                      {detailTeacherSearchLoading && (
+                        <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                      {detailTeacherResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg mt-1 max-h-48 overflow-auto">
+                          {detailTeacherResults.map((t) => (
+                            <div
+                              key={t.id}
+                              className="p-2 hover:bg-muted cursor-pointer text-sm"
+                              onClick={() => {
+                                setDetailSelectedTeachers((prev) => ({ ...prev, [detailAssignTarget]: t }))
+                                setDetailTeacherResults([])
+                                setDetailTeacherSearchTerm("")
+                              }}
+                            >
+                              <p className="font-medium">{t.nombreCompleto}</p>
+                              <p className="text-xs text-muted-foreground break-all">{t.email || t.codDocente || t.idSaga}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {detailTeacherSearchTerm && detailTeacherResults.length === 0 && !detailTeacherSearchLoading && (
+                    <p className="text-xs text-muted-foreground">Sin resultados para “{detailTeacherSearchTerm}”.</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                  {[
+                    { label: "Docente TG", key: "tg" },
+                    { label: "Tutor", key: "tutor" },
+                    { label: "Revisor 1", key: "rev1" },
+                    { label: "Revisor 2 (opcional)", key: "rev2" },
+                  ].map(({ label, key }) => {
+                    const selected = detailSelectedTeachers[key as keyof typeof detailSelectedTeachers]
+                    return (
+                      <div key={key} className="border rounded-md p-3 bg-muted/30 grid gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs text-muted-foreground">{label}</div>
+                          {selected && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setDetailSelectedTeachers((prev) => ({ ...prev, [key]: null }))
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="text-sm font-medium leading-tight break-words">
+                          {selected ? selected.nombreCompleto : <span className="text-xs text-muted-foreground">Sin asignar</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
               <div className="border-t pt-4">
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -640,6 +944,20 @@ export default function ProyectosPage() {
                   >
                     Acta Aprobación
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
+                      setMemoCite(`MEMO-${detailProject.id}-${new Date().getFullYear()}`)
+                      setMemoCiudad("LA PAZ")
+                      setMemoFecha(today)
+                      setMemoFechaDefensa(today)
+                      setMemoHoraDefensa("12:00")
+                      setShowMemoModal(true)
+                    }}
+                  >
+                    Memorandum Aviso
+                  </Button>
                 </div>
               </div>
             </div>
@@ -648,8 +966,8 @@ export default function ProyectosPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
-            <Button onClick={handleUpdateDetail} disabled={detailLoading || !detailProject}>
-              {detailLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Guardar cambios
+            <Button onClick={handleUpdateDetail} disabled={detailSaving || !detailProject}>
+              {detailSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Guardar cambios
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -979,6 +1297,88 @@ export default function ProyectosPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Memorandum Aviso de Defensa */}
+      <Dialog open={showMemoModal} onOpenChange={setShowMemoModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generar Memorandum Aviso de Defensa</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input value={memoCite} onChange={(e) => setMemoCite(e.target.value)} placeholder="Ej. MEMO-001" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input value={memoCiudad} onChange={(e) => setMemoCiudad(e.target.value)} placeholder="Ej. LA PAZ" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={memoFecha} onChange={(e) => setMemoFecha(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha de defensa</Label>
+              <Input type="date" value={memoFechaDefensa} onChange={(e) => setMemoFechaDefensa(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Hora de defensa</Label>
+              <Input type="time" value={memoHoraDefensa} onChange={(e) => setMemoHoraDefensa(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowMemoModal(false)}>Cancelar</Button>
+            <Button
+              disabled={!detailProject || memoGenerating}
+              onClick={async () => {
+                if (!detailProject) {
+                  toast({ variant: "destructive", title: "Sin proyecto cargado" })
+                  return
+                }
+                if (!memoCite || !memoCiudad || !memoFecha || !memoFechaDefensa || !memoHoraDefensa) {
+                  toast({ variant: "destructive", title: "CITE, ciudad, fecha y datos de defensa son obligatorios" })
+                  return
+                }
+                try {
+                  setMemoError("")
+                  setMemoGenerating(true)
+                  const fechaLegible = new Date(memoFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const fechaDefensaLegible = new Date(memoFechaDefensa).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.memoAvisoDefensa({
+                    idProyecto: detailProject.id,
+                    cite: memoCite,
+                    ciudad: memoCiudad,
+                    fecha: fechaLegible,
+                    fechaDefensa: fechaDefensaLegible,
+                    horaDefensa: memoHoraDefensa,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Memorandum generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowMemoModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Memorandum"
+                  setMemoError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setMemoGenerating(false)
+                }
+              }}
+            >
+              {memoGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {memoError && <p className="text-xs text-red-600 mt-2">{memoError}</p>}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showPreview} onOpenChange={handlePreviewOpenChange}>
         <DialogContent className="max-w-5xl">
           <DialogHeader>
@@ -1283,7 +1683,7 @@ export default function ProyectosPage() {
                             }}
                           >
                             <p className="font-medium">{t.nombreCompleto}</p>
-                          <p className="text-xs text-muted-foreground break-all">{t.email || t.codDocente || t.idSaga}</p>
+                            <p className="text-xs text-muted-foreground break-all">{t.email || t.codDocente || t.idSaga}</p>
                           </div>
                         ))}
                       </div>
