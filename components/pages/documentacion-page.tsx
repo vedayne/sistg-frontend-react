@@ -26,6 +26,7 @@ export default function DocumentacionPage() {
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [showCartaPerfilModal, setShowCartaPerfilModal] = useState(false)
+  const [showInformeRevisionModal, setShowInformeRevisionModal] = useState(false)
   const [notaForm, setNotaForm] = useState({
     idProyecto: "",
     cite: "",
@@ -49,6 +50,12 @@ export default function DocumentacionPage() {
     fecha: new Date().toISOString().slice(0, 10),
     fase: "",
     anexos: "",
+  })
+  const [informeRevisionForm, setInformeRevisionForm] = useState({
+    idProyecto: "",
+    ciudad: "LA PAZ",
+    fecha: new Date().toISOString().slice(0, 10),
+    fase: "",
   })
   const [showActaModal, setShowActaModal] = useState(false)
   const [actaForm, setActaForm] = useState({
@@ -105,6 +112,7 @@ export default function DocumentacionPage() {
   const [avalLoading, setAvalLoading] = useState(false)
   const [notaEmpastadoLoading, setNotaEmpastadoLoading] = useState(false)
   const [cartaPerfilLoading, setCartaPerfilLoading] = useState(false)
+  const [informeRevisionLoading, setInformeRevisionLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -196,6 +204,11 @@ export default function DocumentacionPage() {
       if (hasMatch) return prev
       return { ...prev, fase: phases[0]?.name || "" }
     })
+    setInformeRevisionForm((prev) => {
+      const hasMatch = prev.fase && phases.some((fase) => fase.name === prev.fase)
+      if (hasMatch) return prev
+      return { ...prev, fase: phases[0]?.name || "" }
+    })
   }, [phases])
 
   const fetchFilesByType = async (type: DocumentTypeSummary) => {
@@ -238,6 +251,9 @@ export default function DocumentacionPage() {
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowCartaPerfilModal(true)}>
           <FilePlus className="w-4 h-4" /> Carta Aprobación de Perfil
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowInformeRevisionModal(true)}>
+          <FilePlus className="w-4 h-4" /> Informe Revisión
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowActaModal(true)}>
           <FilePlus className="w-4 h-4" /> Generar Acta (Borrador Final)
@@ -726,6 +742,104 @@ export default function DocumentacionPage() {
               }}
             >
               {cartaPerfilLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Informe Revision */}
+      <Dialog open={showInformeRevisionModal} onOpenChange={setShowInformeRevisionModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Informe de Revision</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={informeRevisionForm.idProyecto}
+                onChange={(e) => setInformeRevisionForm({ ...informeRevisionForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={informeRevisionForm.ciudad}
+                onChange={(e) => setInformeRevisionForm({ ...informeRevisionForm, ciudad: e.target.value })}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={informeRevisionForm.fecha}
+                onChange={(e) => setInformeRevisionForm({ ...informeRevisionForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Select
+                value={informeRevisionForm.fase}
+                onValueChange={(value) => setInformeRevisionForm({ ...informeRevisionForm, fase: value })}
+                disabled={phasesLoading || phases.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={phasesLoading ? "Cargando fases..." : "Selecciona fase"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((fase) => (
+                    <SelectItem key={fase.id} value={fase.name}>
+                      {fase.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-full text-xs text-muted-foreground">
+              Estudiante, modalidad y docentes se obtienen del proyecto en el backend.
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowInformeRevisionModal(false)}>Cancelar</Button>
+            <Button
+              disabled={informeRevisionLoading}
+              onClick={async () => {
+                if (!informeRevisionForm.idProyecto || !informeRevisionForm.ciudad || !informeRevisionForm.fecha || !informeRevisionForm.fase) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, ciudad, fecha y fase son obligatorios",
+                  })
+                  return
+                }
+                try {
+                  setInformeRevisionLoading(true)
+                  const fechaLegible = new Date(informeRevisionForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.informeRevision({
+                    idProyecto: Number(informeRevisionForm.idProyecto),
+                    ciudad: informeRevisionForm.ciudad,
+                    fecha: fechaLegible,
+                    fase: informeRevisionForm.fase,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Informe generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowInformeRevisionModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Informe"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setInformeRevisionLoading(false)
+                }
+              }}
+            >
+              {informeRevisionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>

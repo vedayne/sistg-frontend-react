@@ -714,6 +714,14 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    informeRevision: async (data: { idProyecto: number; ciudad: string; fecha: string; fase: string }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/informe-revision",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
     actaAprobacion: async (data: {
       idProyecto: number
       cite: string

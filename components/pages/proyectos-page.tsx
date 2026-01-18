@@ -62,6 +62,10 @@ export default function ProyectosPage() {
   const [cartaPerfilFecha, setCartaPerfilFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [cartaPerfilFase, setCartaPerfilFase] = useState("")
   const [cartaPerfilAnexos, setCartaPerfilAnexos] = useState("")
+  const [showInformeRevisionModal, setShowInformeRevisionModal] = useState(false)
+  const [informeRevisionCiudad, setInformeRevisionCiudad] = useState("LA PAZ")
+  const [informeRevisionFecha, setInformeRevisionFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [informeRevisionFase, setInformeRevisionFase] = useState("")
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [faseSelected, setFaseSelected] = useState("")
@@ -95,6 +99,7 @@ export default function ProyectosPage() {
   const [notaGenerating, setNotaGenerating] = useState(false)
   const [notaEmpastadoGenerating, setNotaEmpastadoGenerating] = useState(false)
   const [cartaPerfilGenerating, setCartaPerfilGenerating] = useState(false)
+  const [informeRevisionGenerating, setInformeRevisionGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
   const [memoGenerating, setMemoGenerating] = useState(false)
   const [memoAsignacionGenerating, setMemoAsignacionGenerating] = useState(false)
@@ -102,6 +107,7 @@ export default function ProyectosPage() {
   const [notaError, setNotaError] = useState("")
   const [notaEmpastadoError, setNotaEmpastadoError] = useState("")
   const [cartaPerfilError, setCartaPerfilError] = useState("")
+  const [informeRevisionError, setInformeRevisionError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
   const [actaError, setActaError] = useState("")
@@ -396,7 +402,7 @@ export default function ProyectosPage() {
   }, [showCreateModal, isStudent, user?.academico?.idSaga])
 
   useEffect(() => {
-    if ((showNotaModal || showActaModal || showAvalModal || showCartaPerfilModal) && phases.length === 0) {
+    if ((showNotaModal || showActaModal || showAvalModal || showCartaPerfilModal || showInformeRevisionModal) && phases.length === 0) {
       const loadPhases = async () => {
         try {
           setPhasesLoading(true)
@@ -405,6 +411,7 @@ export default function ProyectosPage() {
           setFaseSelected((res as any)[0]?.name || "")
           setAvalFase((res as any)[0]?.name || "")
           setCartaPerfilFase((res as any)[0]?.name || "")
+          setInformeRevisionFase((res as any)[0]?.name || "")
         } catch (err) {
           console.error(err)
         } finally {
@@ -413,7 +420,7 @@ export default function ProyectosPage() {
       }
       loadPhases()
     }
-  }, [showNotaModal, showActaModal, showAvalModal, showCartaPerfilModal, phases.length])
+  }, [showNotaModal, showActaModal, showAvalModal, showCartaPerfilModal, showInformeRevisionModal, phases.length])
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este proyecto?")) return
@@ -970,6 +977,18 @@ export default function ProyectosPage() {
                     variant="outline"
                     onClick={() => {
                       const today = new Date().toISOString().slice(0, 10)
+                      setInformeRevisionFecha(today)
+                      setInformeRevisionCiudad("LA PAZ")
+                      setInformeRevisionFase(phases[0]?.name || "")
+                      setShowInformeRevisionModal(true)
+                    }}
+                  >
+                    Informe Revision
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
                       setInvFecha(today)
                       setInvCite("")
                       setInvDestNombre(detailProject.docenteTutor?.nombreCompleto || "")
@@ -1341,6 +1360,88 @@ export default function ProyectosPage() {
             </Button>
           </DialogFooter>
           {cartaPerfilError && <p className="text-xs text-red-600 mt-2">{cartaPerfilError}</p>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Informe Revision */}
+      <Dialog open={showInformeRevisionModal} onOpenChange={setShowInformeRevisionModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Informe de Revision</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={informeRevisionCiudad}
+                onChange={(e) => setInformeRevisionCiudad(e.target.value)}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={informeRevisionFecha} onChange={(e) => setInformeRevisionFecha(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Select value={informeRevisionFase} onValueChange={setInformeRevisionFase}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona fase" />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((f) => (
+                    <SelectItem key={f.id} value={f.name}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El resto de datos se obtiene del proyecto en el backend.
+            </p>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowInformeRevisionModal(false)}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!detailProject) return
+                if (!informeRevisionCiudad || !informeRevisionFecha || !informeRevisionFase) {
+                  toast({ variant: "destructive", title: "Ciudad, fecha y fase son obligatorios" })
+                  return
+                }
+                try {
+                  setInformeRevisionError("")
+                  setInformeRevisionGenerating(true)
+                  const fechaLegible = new Date(informeRevisionFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.informeRevision({
+                    idProyecto: detailProject.id,
+                    ciudad: informeRevisionCiudad,
+                    fecha: fechaLegible,
+                    fase: informeRevisionFase,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Informe generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowInformeRevisionModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Informe"
+                  setInformeRevisionError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setInformeRevisionGenerating(false)
+                }
+              }}
+              disabled={!detailProject || informeRevisionGenerating}
+            >
+              {informeRevisionGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {informeRevisionError && <p className="text-xs text-red-600 mt-2">{informeRevisionError}</p>}
         </DialogContent>
       </Dialog>
 
