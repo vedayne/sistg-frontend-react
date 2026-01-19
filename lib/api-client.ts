@@ -685,6 +685,20 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    notaServicioEmpastado: async (data: {
+      idProyecto: number
+      cite: string
+      ciudad: string
+      fecha: string
+      fechaPresentacion: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/nota-servicio-empastado",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
     actaAprobacion: async (data: {
       idProyecto: number
       cite: string

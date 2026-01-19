@@ -51,6 +51,11 @@ export default function ProyectosPage() {
   const [detailJefeLoading, setDetailJefeLoading] = useState(false)
   const [detailSelectedJefe, setDetailSelectedJefe] = useState<UserBasicInfo | null>(null)
   const [showNotaModal, setShowNotaModal] = useState(false)
+  const [showNotaEmpastadoModal, setShowNotaEmpastadoModal] = useState(false)
+  const [notaEmpastadoCite, setNotaEmpastadoCite] = useState("")
+  const [notaEmpastadoCiudad, setNotaEmpastadoCiudad] = useState("LA PAZ")
+  const [notaEmpastadoFecha, setNotaEmpastadoFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [notaEmpastadoFechaPresentacion, setNotaEmpastadoFechaPresentacion] = useState(() => new Date().toISOString().slice(0, 10))
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [faseSelected, setFaseSelected] = useState("")
@@ -82,11 +87,13 @@ export default function ProyectosPage() {
   const [memoAsignacionCiudad, setMemoAsignacionCiudad] = useState("LA PAZ")
   const [memoAsignacionFecha, setMemoAsignacionFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [notaGenerating, setNotaGenerating] = useState(false)
+  const [notaEmpastadoGenerating, setNotaEmpastadoGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
   const [memoGenerating, setMemoGenerating] = useState(false)
   const [memoAsignacionGenerating, setMemoAsignacionGenerating] = useState(false)
   const [avalGenerating, setAvalGenerating] = useState(false)
   const [notaError, setNotaError] = useState("")
+  const [notaEmpastadoError, setNotaEmpastadoError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
   const [actaError, setActaError] = useState("")
@@ -918,11 +925,23 @@ export default function ProyectosPage() {
                       setDetailNotaFechaDefensa(today)
                       setDetailNotaHoraDefensa("12:00")
                       setDetailNotaCite(`CITE-${detailProject.id}-${new Date().getFullYear()}`)
-                      setFaseSelected(phases[0]?.name || "")
                       setShowNotaModal(true)
                     }}
                   >
                     Nota de Servicio
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
+                      setNotaEmpastadoFecha(today)
+                      setNotaEmpastadoFechaPresentacion(today)
+                      setNotaEmpastadoCiudad("LA PAZ")
+                      setNotaEmpastadoCite(`CITE-EMP-${detailProject.id}-${new Date().getFullYear()}`)
+                      setShowNotaEmpastadoModal(true)
+                    }}
+                  >
+                    Nota de Servicio Empastado
                   </Button>
                   <Button
                     variant="outline"
@@ -1114,6 +1133,95 @@ export default function ProyectosPage() {
             </Button>
           </DialogFooter>
           {notaError && <p className="text-xs text-red-600 mt-2">{notaError}</p>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Nota de Servicio Empastado */}
+      <Dialog open={showNotaEmpastadoModal} onOpenChange={setShowNotaEmpastadoModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nota de Servicio Empastado</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={notaEmpastadoCite}
+                onChange={(e) => setNotaEmpastadoCite(e.target.value)}
+                placeholder="Ej. CITE-EMP-123/2024"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={notaEmpastadoCiudad}
+                onChange={(e) => setNotaEmpastadoCiudad(e.target.value)}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={notaEmpastadoFecha} onChange={(e) => setNotaEmpastadoFecha(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha límite de presentación</Label>
+              <Input
+                type="date"
+                value={notaEmpastadoFechaPresentacion}
+                onChange={(e) => setNotaEmpastadoFechaPresentacion(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El semestre y la gestión se obtienen del proyecto (solo 6to o 10mo semestre).
+            </p>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowNotaEmpastadoModal(false)}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!detailProject) return
+                if (!notaEmpastadoCite || !notaEmpastadoCiudad || !notaEmpastadoFecha || !notaEmpastadoFechaPresentacion) {
+                  toast({ variant: "destructive", title: "CITE, ciudad, fecha y fecha límite son obligatorios" })
+                  return
+                }
+                try {
+                  setNotaEmpastadoError("")
+                  setNotaEmpastadoGenerating(true)
+                  const fechaLegible = new Date(notaEmpastadoFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const fechaPresentacionLegible = new Date(notaEmpastadoFechaPresentacion).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.notaServicioEmpastado({
+                    idProyecto: detailProject.id,
+                    cite: notaEmpastadoCite,
+                    ciudad: notaEmpastadoCiudad,
+                    fecha: fechaLegible,
+                    fechaPresentacion: fechaPresentacionLegible,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Nota generada", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowNotaEmpastadoModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Nota de Servicio Empastado"
+                  setNotaEmpastadoError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setNotaEmpastadoGenerating(false)
+                }
+              }}
+              disabled={!detailProject || notaEmpastadoGenerating}
+            >
+              {notaEmpastadoGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {notaEmpastadoError && <p className="text-xs text-red-600 mt-2">{notaEmpastadoError}</p>}
         </DialogContent>
       </Dialog>
 

@@ -33,6 +33,14 @@ export default function DocumentacionPage() {
     horaDefensa: "12:00",
     fase: "",
   })
+  const [showNotaEmpastadoModal, setShowNotaEmpastadoModal] = useState(false)
+  const [notaEmpastadoForm, setNotaEmpastadoForm] = useState({
+    idProyecto: "",
+    cite: "",
+    ciudad: "LA PAZ",
+    fecha: new Date().toISOString().slice(0, 10),
+    fechaPresentacion: new Date().toISOString().slice(0, 10),
+  })
   const [showActaModal, setShowActaModal] = useState(false)
   const [actaForm, setActaForm] = useState({
     idProyecto: "",
@@ -86,6 +94,7 @@ export default function DocumentacionPage() {
   const [memoLoading, setMemoLoading] = useState(false)
   const [memoAsignacionLoading, setMemoAsignacionLoading] = useState(false)
   const [avalLoading, setAvalLoading] = useState(false)
+  const [notaEmpastadoLoading, setNotaEmpastadoLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -208,6 +217,9 @@ export default function DocumentacionPage() {
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" className="gap-2" onClick={() => setShowNotaModal(true)}>
           <FilePlus className="w-4 h-4" /> Generar Nota de Servicio
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowNotaEmpastadoModal(true)}>
+          <FilePlus className="w-4 h-4" /> Nota de Servicio Empastado
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowActaModal(true)}>
           <FilePlus className="w-4 h-4" /> Generar Acta (Borrador Final)
@@ -479,6 +491,107 @@ export default function DocumentacionPage() {
               }}
             >
               {notaLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Nota de Servicio Empastado */}
+      <Dialog open={showNotaEmpastadoModal} onOpenChange={setShowNotaEmpastadoModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Nota de Servicio Empastado</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={notaEmpastadoForm.idProyecto}
+                onChange={(e) => setNotaEmpastadoForm({ ...notaEmpastadoForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={notaEmpastadoForm.cite}
+                onChange={(e) => setNotaEmpastadoForm({ ...notaEmpastadoForm, cite: e.target.value })}
+                placeholder="Ej. CITE-123/2024"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={notaEmpastadoForm.ciudad}
+                onChange={(e) => setNotaEmpastadoForm({ ...notaEmpastadoForm, ciudad: e.target.value })}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={notaEmpastadoForm.fecha}
+                onChange={(e) => setNotaEmpastadoForm({ ...notaEmpastadoForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha límite de presentación</Label>
+              <Input
+                type="date"
+                value={notaEmpastadoForm.fechaPresentacion}
+                onChange={(e) => setNotaEmpastadoForm({ ...notaEmpastadoForm, fechaPresentacion: e.target.value })}
+              />
+            </div>
+            <div className="col-span-full text-xs text-muted-foreground">
+              Estudiante, semestre y gestión se obtienen del proyecto (solo 6to o 10mo semestre).
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowNotaEmpastadoModal(false)}>Cancelar</Button>
+            <Button
+              disabled={notaEmpastadoLoading}
+              onClick={async () => {
+                if (!notaEmpastadoForm.idProyecto || !notaEmpastadoForm.cite || !notaEmpastadoForm.ciudad || !notaEmpastadoForm.fecha || !notaEmpastadoForm.fechaPresentacion) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, CITE, ciudad, fecha y fecha límite son obligatorios",
+                  })
+                  return
+                }
+                try {
+                  setNotaEmpastadoLoading(true)
+                  const fechaLegible = new Date(notaEmpastadoForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const fechaPresentacionLegible = new Date(notaEmpastadoForm.fechaPresentacion).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.notaServicioEmpastado({
+                    idProyecto: Number(notaEmpastadoForm.idProyecto),
+                    cite: notaEmpastadoForm.cite,
+                    ciudad: notaEmpastadoForm.ciudad,
+                    fecha: fechaLegible,
+                    fechaPresentacion: fechaPresentacionLegible,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Nota generada", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowNotaEmpastadoModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Nota de Servicio Empastado"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setNotaEmpastadoLoading(false)
+                }
+              }}
+            >
+              {notaEmpastadoLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>
