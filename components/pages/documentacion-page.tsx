@@ -45,6 +45,7 @@ export default function DocumentacionPage() {
   const [showCartaInvModal, setShowCartaInvModal] = useState(false)
   const [showCartaAceModal, setShowCartaAceModal] = useState(false)
   const [showMemoModal, setShowMemoModal] = useState(false)
+  const [showMemoAsignacionModal, setShowMemoAsignacionModal] = useState(false)
   const [showAvalModal, setShowAvalModal] = useState(false)
   const [cartaInvForm, setCartaInvForm] = useState({
     idProyecto: "",
@@ -66,6 +67,12 @@ export default function DocumentacionPage() {
     fechaDefensa: new Date().toISOString().slice(0, 10),
     horaDefensa: "12:00",
   })
+  const [memoAsignacionForm, setMemoAsignacionForm] = useState({
+    idProyecto: "",
+    cite: "",
+    ciudad: "LA PAZ",
+    fecha: new Date().toISOString().slice(0, 10),
+  })
   const [avalForm, setAvalForm] = useState({
     idProyecto: "",
     fecha: new Date().toISOString().slice(0, 10),
@@ -77,6 +84,7 @@ export default function DocumentacionPage() {
   const [cartaInvLoading, setCartaInvLoading] = useState(false)
   const [cartaAceLoading, setCartaAceLoading] = useState(false)
   const [memoLoading, setMemoLoading] = useState(false)
+  const [memoAsignacionLoading, setMemoAsignacionLoading] = useState(false)
   const [avalLoading, setAvalLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
@@ -212,6 +220,9 @@ export default function DocumentacionPage() {
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowMemoModal(true)}>
           <FilePlus className="w-4 h-4" /> Memorandum Aviso de Defensa
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowMemoAsignacionModal(true)}>
+          <FilePlus className="w-4 h-4" /> Memorandum Asignacion Tutor
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowAvalModal(true)}>
           <FilePlus className="w-4 h-4" /> Aval
@@ -842,6 +853,93 @@ export default function DocumentacionPage() {
               }}
             >
               {memoLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Memorandum Asignacion Tutor */}
+      <Dialog open={showMemoAsignacionModal} onOpenChange={setShowMemoAsignacionModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Generar Memorandum Asignacion Tutor</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={memoAsignacionForm.idProyecto}
+                onChange={(e) => setMemoAsignacionForm({ ...memoAsignacionForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={memoAsignacionForm.cite}
+                onChange={(e) => setMemoAsignacionForm({ ...memoAsignacionForm, cite: e.target.value })}
+                placeholder="Ej. MEMO-123/2024"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={memoAsignacionForm.ciudad}
+                onChange={(e) => setMemoAsignacionForm({ ...memoAsignacionForm, ciudad: e.target.value })}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={memoAsignacionForm.fecha}
+                onChange={(e) => setMemoAsignacionForm({ ...memoAsignacionForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="col-span-full text-xs text-muted-foreground">
+              El tutor, estudiante y especialidad se obtienen del proyecto en el backend.
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowMemoAsignacionModal(false)}>Cancelar</Button>
+            <Button
+              disabled={memoAsignacionLoading}
+              onClick={async () => {
+                if (!memoAsignacionForm.idProyecto || !memoAsignacionForm.cite || !memoAsignacionForm.ciudad || !memoAsignacionForm.fecha) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, CITE, ciudad y fecha son obligatorios",
+                  })
+                  return
+                }
+                try {
+                  setMemoAsignacionLoading(true)
+                  const fechaLegible = new Date(memoAsignacionForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.memoAsignacionTutor({
+                    idProyecto: Number(memoAsignacionForm.idProyecto),
+                    cite: memoAsignacionForm.cite,
+                    ciudad: memoAsignacionForm.ciudad,
+                    fecha: fechaLegible,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Memorandum generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowMemoAsignacionModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Memorandum"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setMemoAsignacionLoading(false)
+                }
+              }}
+            >
+              {memoAsignacionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>

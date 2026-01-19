@@ -737,6 +737,14 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    memoAsignacionTutor: async (data: { idProyecto: number; cite: string; ciudad: string; fecha: string }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/memo-asignacion-tutor",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
     aval: async (data: {
       idProyecto: number
       fecha: string

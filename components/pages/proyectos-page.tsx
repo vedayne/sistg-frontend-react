@@ -77,15 +77,21 @@ export default function ProyectosPage() {
   const [memoFecha, setMemoFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [memoFechaDefensa, setMemoFechaDefensa] = useState(() => new Date().toISOString().slice(0, 10))
   const [memoHoraDefensa, setMemoHoraDefensa] = useState("12:00")
+  const [showMemoAsignacionModal, setShowMemoAsignacionModal] = useState(false)
+  const [memoAsignacionCite, setMemoAsignacionCite] = useState("")
+  const [memoAsignacionCiudad, setMemoAsignacionCiudad] = useState("LA PAZ")
+  const [memoAsignacionFecha, setMemoAsignacionFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [notaGenerating, setNotaGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
   const [memoGenerating, setMemoGenerating] = useState(false)
+  const [memoAsignacionGenerating, setMemoAsignacionGenerating] = useState(false)
   const [avalGenerating, setAvalGenerating] = useState(false)
   const [notaError, setNotaError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
   const [actaError, setActaError] = useState("")
   const [memoError, setMemoError] = useState("")
+  const [memoAsignacionError, setMemoAsignacionError] = useState("")
   const [avalError, setAvalError] = useState("")
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
@@ -970,6 +976,18 @@ export default function ProyectosPage() {
                     variant="outline"
                     onClick={() => {
                       const today = new Date().toISOString().slice(0, 10)
+                      setMemoAsignacionCite(`MEMO-ASIG-${detailProject.id}-${new Date().getFullYear()}`)
+                      setMemoAsignacionCiudad("LA PAZ")
+                      setMemoAsignacionFecha(today)
+                      setShowMemoAsignacionModal(true)
+                    }}
+                  >
+                    Memorandum Asignacion Tutor
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
                       setAvalFecha(today)
                       setAvalFase(phases[0]?.name || "")
                       setAvalFirmante("tg")
@@ -1396,6 +1414,81 @@ export default function ProyectosPage() {
             </Button>
           </DialogFooter>
           {memoError && <p className="text-xs text-red-600 mt-2">{memoError}</p>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Memorandum Asignacion Tutor */}
+      <Dialog open={showMemoAsignacionModal} onOpenChange={setShowMemoAsignacionModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generar Memorandum Asignacion Tutor</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={memoAsignacionCite}
+                onChange={(e) => setMemoAsignacionCite(e.target.value)}
+                placeholder="Ej. MEMO-001"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={memoAsignacionCiudad}
+                onChange={(e) => setMemoAsignacionCiudad(e.target.value)}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={memoAsignacionFecha} onChange={(e) => setMemoAsignacionFecha(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowMemoAsignacionModal(false)}>Cancelar</Button>
+            <Button
+              disabled={!detailProject || memoAsignacionGenerating}
+              onClick={async () => {
+                if (!detailProject) {
+                  toast({ variant: "destructive", title: "Sin proyecto cargado" })
+                  return
+                }
+                if (!memoAsignacionCite || !memoAsignacionCiudad || !memoAsignacionFecha) {
+                  toast({ variant: "destructive", title: "CITE, ciudad y fecha son obligatorios" })
+                  return
+                }
+                try {
+                  setMemoAsignacionError("")
+                  setMemoAsignacionGenerating(true)
+                  const fechaLegible = new Date(memoAsignacionFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.memoAsignacionTutor({
+                    idProyecto: detailProject.id,
+                    cite: memoAsignacionCite,
+                    ciudad: memoAsignacionCiudad,
+                    fecha: fechaLegible,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Memorandum generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowMemoAsignacionModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Memorandum"
+                  setMemoAsignacionError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setMemoAsignacionGenerating(false)
+                }
+              }}
+            >
+              {memoAsignacionGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {memoAsignacionError && <p className="text-xs text-red-600 mt-2">{memoAsignacionError}</p>}
         </DialogContent>
       </Dialog>
 
