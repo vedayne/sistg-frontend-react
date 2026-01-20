@@ -117,6 +117,12 @@ export default function ProyectosPage() {
   const [informeRevisionCiudad, setInformeRevisionCiudad] = useState("LA PAZ")
   const [informeRevisionFecha, setInformeRevisionFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [informeRevisionFase, setInformeRevisionFase] = useState("")
+  const [showTemarioDocModal, setShowTemarioDocModal] = useState(false)
+  const [temarioDocCite, setTemarioDocCite] = useState("")
+  const [temarioDocObjeto, setTemarioDocObjeto] = useState("")
+  const [temarioDocAnexos, setTemarioDocAnexos] = useState("S/A")
+  const [temarioDocCiudad, setTemarioDocCiudad] = useState("LA PAZ")
+  const [temarioDocFecha, setTemarioDocFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [showTemarioModal, setShowTemarioModal] = useState(false)
   const [temarioProject, setTemarioProject] = useState<ProjectResponseDto | null>(null)
   const [temarioCapitulos, setTemarioCapitulos] = useState<TemarioCapituloItem[]>([])
@@ -170,6 +176,7 @@ export default function ProyectosPage() {
   const [notaEmpastadoGenerating, setNotaEmpastadoGenerating] = useState(false)
   const [cartaPerfilGenerating, setCartaPerfilGenerating] = useState(false)
   const [informeRevisionGenerating, setInformeRevisionGenerating] = useState(false)
+  const [temarioDocGenerating, setTemarioDocGenerating] = useState(false)
   const [controlGenerating, setControlGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
   const [memoGenerating, setMemoGenerating] = useState(false)
@@ -179,6 +186,7 @@ export default function ProyectosPage() {
   const [notaEmpastadoError, setNotaEmpastadoError] = useState("")
   const [cartaPerfilError, setCartaPerfilError] = useState("")
   const [informeRevisionError, setInformeRevisionError] = useState("")
+  const [temarioDocError, setTemarioDocError] = useState("")
   const [controlError, setControlError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
@@ -1120,6 +1128,20 @@ export default function ProyectosPage() {
                     variant="outline"
                     onClick={() => {
                       const today = new Date().toISOString().slice(0, 10)
+                      setTemarioDocFecha(today)
+                      setTemarioDocCiudad("LA PAZ")
+                      setTemarioDocCite(`CITE-TEMARIO-${detailProject.id}-${new Date().getFullYear()}`)
+                      setTemarioDocObjeto("APROBACION DE TEMARIO")
+                      setTemarioDocAnexos("S/A")
+                      setShowTemarioDocModal(true)
+                    }}
+                  >
+                    Temario
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
                       setControlFechaDevolucion(today)
                       setControlRevisionPor(user?.persona?.nombreCompleto || user?.email || "")
                       setControlFase(phases[0]?.name || "")
@@ -1880,6 +1902,81 @@ export default function ProyectosPage() {
             </Button>
           </DialogFooter>
           {informeRevisionError && <p className="text-xs text-red-600 mt-2">{informeRevisionError}</p>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Temario */}
+      <Dialog open={showTemarioDocModal} onOpenChange={setShowTemarioDocModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Temario</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input value={temarioDocCite} onChange={(e) => setTemarioDocCite(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Objeto</Label>
+              <Input value={temarioDocObjeto} onChange={(e) => setTemarioDocObjeto(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Anexos</Label>
+              <Input value={temarioDocAnexos} onChange={(e) => setTemarioDocAnexos(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input value={temarioDocCiudad} onChange={(e) => setTemarioDocCiudad(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={temarioDocFecha} onChange={(e) => setTemarioDocFecha(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">Usa el temario registrado en este proyecto.</p>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowTemarioDocModal(false)}>Cancelar</Button>
+            <Button
+              disabled={temarioDocGenerating}
+              onClick={async () => {
+                if (!detailProject) return
+                if (!temarioDocCite || !temarioDocObjeto || !temarioDocCiudad || !temarioDocFecha) {
+                  toast({ variant: "destructive", title: "CITE, objeto, ciudad y fecha son obligatorios" })
+                  return
+                }
+                try {
+                  setTemarioDocError("")
+                  setTemarioDocGenerating(true)
+                  const fechaLegible = new Date(temarioDocFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.temario({
+                    idProyecto: detailProject.id,
+                    cite: temarioDocCite,
+                    objeto: temarioDocObjeto,
+                    anexos: temarioDocAnexos || undefined,
+                    ciudad: temarioDocCiudad,
+                    fecha: fechaLegible,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Temario generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowTemarioDocModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Temario"
+                  setTemarioDocError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setTemarioDocGenerating(false)
+                }
+              }}
+            >
+              {temarioDocGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {temarioDocError && <p className="text-xs text-red-600 mt-2">{temarioDocError}</p>}
         </DialogContent>
       </Dialog>
 

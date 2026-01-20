@@ -52,6 +52,7 @@ export default function DocumentacionPage() {
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [showCartaPerfilModal, setShowCartaPerfilModal] = useState(false)
   const [showInformeRevisionModal, setShowInformeRevisionModal] = useState(false)
+  const [showTemarioModal, setShowTemarioModal] = useState(false)
   const [showControlModal, setShowControlModal] = useState(false)
   const [notaForm, setNotaForm] = useState({
     idProyecto: "",
@@ -82,6 +83,14 @@ export default function DocumentacionPage() {
     ciudad: "LA PAZ",
     fecha: new Date().toISOString().slice(0, 10),
     fase: "",
+  })
+  const [temarioForm, setTemarioForm] = useState({
+    idProyecto: "",
+    cite: "",
+    objeto: "",
+    anexos: "S/A",
+    ciudad: "LA PAZ",
+    fecha: new Date().toISOString().slice(0, 10),
   })
   const [controlForm, setControlForm] = useState({
     idProyecto: "",
@@ -148,6 +157,7 @@ export default function DocumentacionPage() {
   const [notaEmpastadoLoading, setNotaEmpastadoLoading] = useState(false)
   const [cartaPerfilLoading, setCartaPerfilLoading] = useState(false)
   const [informeRevisionLoading, setInformeRevisionLoading] = useState(false)
+  const [temarioLoading, setTemarioLoading] = useState(false)
   const [controlLoading, setControlLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
@@ -304,6 +314,23 @@ export default function DocumentacionPage() {
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowInformeRevisionModal(true)}>
           <FilePlus className="w-4 h-4" /> Informe Revisión
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            setTemarioForm({
+              idProyecto: "",
+              cite: "",
+              objeto: "",
+              anexos: "S/A",
+              ciudad: "LA PAZ",
+              fecha: new Date().toISOString().slice(0, 10),
+            })
+            setShowTemarioModal(true)
+          }}
+        >
+          <FilePlus className="w-4 h-4" /> Temario
         </Button>
         <Button
           variant="outline"
@@ -908,6 +935,111 @@ export default function DocumentacionPage() {
               }}
             >
               {informeRevisionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Temario */}
+      <Dialog open={showTemarioModal} onOpenChange={setShowTemarioModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Temario</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={temarioForm.idProyecto}
+                onChange={(e) => setTemarioForm({ ...temarioForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={temarioForm.cite}
+                onChange={(e) => setTemarioForm({ ...temarioForm, cite: e.target.value })}
+                placeholder="Ej. CITE-123/2025"
+              />
+            </div>
+            <div className="grid gap-2 md:col-span-2">
+              <Label>Objeto</Label>
+              <Input
+                value={temarioForm.objeto}
+                onChange={(e) => setTemarioForm({ ...temarioForm, objeto: e.target.value })}
+                placeholder="Ej. Aprobación de temario"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Anexos</Label>
+              <Input
+                value={temarioForm.anexos}
+                onChange={(e) => setTemarioForm({ ...temarioForm, anexos: e.target.value })}
+                placeholder="S/A"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={temarioForm.ciudad}
+                onChange={(e) => setTemarioForm({ ...temarioForm, ciudad: e.target.value })}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={temarioForm.fecha}
+                onChange={(e) => setTemarioForm({ ...temarioForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="col-span-full text-xs text-muted-foreground">
+              El temario se obtiene del proyecto registrado (capítulos y secciones).
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowTemarioModal(false)}>Cancelar</Button>
+            <Button
+              disabled={temarioLoading}
+              onClick={async () => {
+                if (!temarioForm.idProyecto || !temarioForm.cite || !temarioForm.objeto || !temarioForm.ciudad || !temarioForm.fecha) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, CITE, objeto, ciudad y fecha son obligatorios",
+                  })
+                  return
+                }
+                try {
+                  setTemarioLoading(true)
+                  const fechaLegible = new Date(temarioForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.temario({
+                    idProyecto: Number(temarioForm.idProyecto),
+                    cite: temarioForm.cite,
+                    objeto: temarioForm.objeto,
+                    anexos: temarioForm.anexos || undefined,
+                    ciudad: temarioForm.ciudad,
+                    fecha: fechaLegible,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Temario generado", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowTemarioModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar el Temario"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setTemarioLoading(false)
+                }
+              }}
+            >
+              {temarioLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>

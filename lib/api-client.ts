@@ -749,6 +749,21 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    temario: async (data: {
+      idProyecto: number
+      cite: string
+      objeto: string
+      anexos?: string
+      ciudad: string
+      fecha: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/temario",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
     bitacora: async (data: {
       idProyecto: number
       fase: string
