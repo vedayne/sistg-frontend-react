@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Plus, Trash2, Eye, Search } from "lucide-react"
+import { Loader2, Plus, Trash2, Eye, Search, BookOpen, ArrowUp, ArrowDown } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,6 +36,35 @@ const controlCumpleLabels = [
   "Relacion Titulo - Problematica - Objetivos",
   "Profundidad y Pertinencia del Trabajo",
 ]
+
+const createTemarioId = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+type TemarioSubcapituloItem = {
+  id: string
+  titulo: string
+}
+
+type TemarioCapituloItem = {
+  id: string
+  titulo: string
+  subcapitulos: TemarioSubcapituloItem[]
+}
+
+const createTemarioSubcapitulo = (titulo = ""): TemarioSubcapituloItem => ({
+  id: createTemarioId(),
+  titulo,
+})
+
+const createTemarioCapitulo = (titulo = ""): TemarioCapituloItem => ({
+  id: createTemarioId(),
+  titulo,
+  subcapitulos: [],
+})
 
 export default function ProyectosPage() {
   const { user } = useAuth()
@@ -88,6 +117,18 @@ export default function ProyectosPage() {
   const [informeRevisionCiudad, setInformeRevisionCiudad] = useState("LA PAZ")
   const [informeRevisionFecha, setInformeRevisionFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [informeRevisionFase, setInformeRevisionFase] = useState("")
+  const [showTemarioModal, setShowTemarioModal] = useState(false)
+  const [temarioProject, setTemarioProject] = useState<ProjectResponseDto | null>(null)
+  const [temarioCapitulos, setTemarioCapitulos] = useState<TemarioCapituloItem[]>([])
+  const [temarioSecciones, setTemarioSecciones] = useState({
+    bibliografia: false,
+    anexos: false,
+    acronimos: false,
+    glosario: false,
+  })
+  const [temarioLoading, setTemarioLoading] = useState(false)
+  const [temarioSaving, setTemarioSaving] = useState(false)
+  const [temarioError, setTemarioError] = useState("")
   const [showControlModal, setShowControlModal] = useState(false)
   const [controlFase, setControlFase] = useState("")
   const [controlRevisionPor, setControlRevisionPor] = useState("")
@@ -322,6 +363,45 @@ export default function ProyectosPage() {
       setDetailOpen(false)
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  const openTemario = async (project: ProjectResponseDto) => {
+    setTemarioProject(project)
+    setShowTemarioModal(true)
+    setTemarioError("")
+    setTemarioLoading(true)
+    try {
+      const res = await apiClient.projects.getTemario(project.id)
+      const data = (res as any).data || res
+      const capitulos = (data?.capitulos || []).map((cap: any) => ({
+        id: createTemarioId(),
+        titulo: cap?.titulo || "",
+        subcapitulos: (cap?.subcapitulos || []).map((sub: any) => ({
+          id: createTemarioId(),
+          titulo: sub?.titulo || "",
+        })),
+      }))
+      setTemarioCapitulos(capitulos)
+      setTemarioSecciones({
+        bibliografia: !!data?.secciones?.bibliografia,
+        anexos: !!data?.secciones?.anexos,
+        acronimos: !!data?.secciones?.acronimos,
+        glosario: !!data?.secciones?.glosario,
+      })
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : "No se pudo cargar el temario"
+      setTemarioError(msg)
+      setTemarioCapitulos([])
+      setTemarioSecciones({
+        bibliografia: false,
+        anexos: false,
+        acronimos: false,
+        glosario: false,
+      })
+      toast({ variant: "destructive", title: "Error", description: msg })
+    } finally {
+      setTemarioLoading(false)
     }
   }
 
@@ -716,6 +796,9 @@ export default function ProyectosPage() {
                             <div className="flex items-center gap-2">
                               <Button variant="ghost" size="icon" title="Ver Detalles" onClick={() => openDetail(p.id)}>
                                 <Eye className="w-4 h-4 text-primary" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Temario" onClick={() => openTemario(p)}>
+                                <BookOpen className="w-4 h-4 text-primary" />
                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)} title="Eliminar">
                                 <Trash2 className="w-4 h-4 text-red-500" />
@@ -1130,6 +1213,298 @@ export default function ProyectosPage() {
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
             <Button onClick={handleUpdateDetail} disabled={detailSaving || !detailProject}>
               {detailSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Guardar cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Temario Modal */}
+      <Dialog
+        open={showTemarioModal}
+        onOpenChange={(open) => {
+          setShowTemarioModal(open)
+          if (!open) {
+            setTemarioProject(null)
+            setTemarioError("")
+          }
+        }}
+      >
+        <DialogContent className="!max-w-[50vw] !w-[50vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Temario</DialogTitle>
+          </DialogHeader>
+          {temarioLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-md border p-3 bg-muted/30">
+                <div className="text-xs text-muted-foreground">Proyecto</div>
+                <div className="text-sm font-semibold">{temarioProject?.titulo || "Sin título"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {temarioProject?.estudiante?.nombreCompleto || "Sin estudiante"}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-semibold">Capítulos</div>
+                  <div className="text-xs text-muted-foreground">La numeración se recalcula automáticamente.</div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setTemarioCapitulos((prev) => [...prev, createTemarioCapitulo()])}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Agregar capítulo
+                </Button>
+              </div>
+
+              {temarioCapitulos.length === 0 && (
+                <p className="text-sm text-muted-foreground">Aún no hay capítulos. Agrega el primero.</p>
+              )}
+
+              <div className="space-y-3">
+                {temarioCapitulos.map((capitulo, capIndex) => (
+                  <div key={capitulo.id} className="rounded-md border p-3 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="text-sm font-semibold w-24">{`Capítulo ${capIndex + 1}`}</div>
+                      <Input
+                        value={capitulo.titulo}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setTemarioCapitulos((prev) => {
+                            const next = [...prev]
+                            next[capIndex] = { ...next[capIndex], titulo: value }
+                            return next
+                          })
+                        }}
+                        placeholder="Título del capítulo"
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={capIndex === 0}
+                        onClick={() => {
+                          setTemarioCapitulos((prev) => {
+                            if (capIndex === 0) return prev
+                            const next = [...prev]
+                            ;[next[capIndex - 1], next[capIndex]] = [next[capIndex], next[capIndex - 1]]
+                            return next
+                          })
+                        }}
+                        title="Subir"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={capIndex === temarioCapitulos.length - 1}
+                        onClick={() => {
+                          setTemarioCapitulos((prev) => {
+                            if (capIndex >= prev.length - 1) return prev
+                            const next = [...prev]
+                            ;[next[capIndex], next[capIndex + 1]] = [next[capIndex + 1], next[capIndex]]
+                            return next
+                          })
+                        }}
+                        title="Bajar"
+                      >
+                        <ArrowDown className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setTemarioCapitulos((prev) => prev.filter((_, idx) => idx !== capIndex))
+                        }}
+                        title="Eliminar capítulo"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2 pl-4">
+                      {capitulo.subcapitulos.map((sub, subIndex) => (
+                        <div key={sub.id} className="flex flex-wrap items-center gap-2">
+                          <div className="text-xs text-muted-foreground w-16">
+                            {capIndex + 1}.{subIndex + 1}
+                          </div>
+                          <Input
+                            value={sub.titulo}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setTemarioCapitulos((prev) => {
+                                const next = [...prev]
+                                const subs = [...next[capIndex].subcapitulos]
+                                subs[subIndex] = { ...subs[subIndex], titulo: value }
+                                next[capIndex] = { ...next[capIndex], subcapitulos: subs }
+                                return next
+                              })
+                            }}
+                            placeholder="Título del subcapítulo"
+                            className="flex-1"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={subIndex === 0}
+                            onClick={() => {
+                              setTemarioCapitulos((prev) => {
+                                if (subIndex === 0) return prev
+                                const next = [...prev]
+                                const subs = [...next[capIndex].subcapitulos]
+                                ;[subs[subIndex - 1], subs[subIndex]] = [subs[subIndex], subs[subIndex - 1]]
+                                next[capIndex] = { ...next[capIndex], subcapitulos: subs }
+                                return next
+                              })
+                            }}
+                            title="Subir"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={subIndex === capitulo.subcapitulos.length - 1}
+                            onClick={() => {
+                              setTemarioCapitulos((prev) => {
+                                if (subIndex >= prev[capIndex].subcapitulos.length - 1) return prev
+                                const next = [...prev]
+                                const subs = [...next[capIndex].subcapitulos]
+                                ;[subs[subIndex], subs[subIndex + 1]] = [subs[subIndex + 1], subs[subIndex]]
+                                next[capIndex] = { ...next[capIndex], subcapitulos: subs }
+                                return next
+                              })
+                            }}
+                            title="Bajar"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setTemarioCapitulos((prev) => {
+                                const next = [...prev]
+                                const subs = next[capIndex].subcapitulos.filter((_, idx) => idx !== subIndex)
+                                next[capIndex] = { ...next[capIndex], subcapitulos: subs }
+                                return next
+                              })
+                            }}
+                            title="Eliminar subcapítulo"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTemarioCapitulos((prev) => {
+                            const next = [...prev]
+                            const subs = [...next[capIndex].subcapitulos, createTemarioSubcapitulo()]
+                            next[capIndex] = { ...next[capIndex], subcapitulos: subs }
+                            return next
+                          })
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Agregar subcapítulo
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-semibold">Secciones adicionales</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={temarioSecciones.bibliografia}
+                      onCheckedChange={(checked) =>
+                        setTemarioSecciones((prev) => ({ ...prev, bibliografia: checked === true }))
+                      }
+                    />
+                    BIBLIOGRAFIA
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={temarioSecciones.glosario}
+                      onCheckedChange={(checked) =>
+                        setTemarioSecciones((prev) => ({ ...prev, glosario: checked === true }))
+                      }
+                    />
+                    GLOSARIO
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={temarioSecciones.anexos}
+                      onCheckedChange={(checked) =>
+                        setTemarioSecciones((prev) => ({ ...prev, anexos: checked === true }))
+                      }
+                    />
+                    ANEXOS
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={temarioSecciones.acronimos}
+                      onCheckedChange={(checked) =>
+                        setTemarioSecciones((prev) => ({ ...prev, acronimos: checked === true }))
+                      }
+                    />
+                    ACRONIMOS
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {temarioError && <p className="text-xs text-red-600">{temarioError}</p>}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTemarioModal(false)}>Cerrar</Button>
+            <Button
+              disabled={!temarioProject || temarioSaving}
+              onClick={async () => {
+                if (!temarioProject) return
+                try {
+                  setTemarioSaving(true)
+                  setTemarioError("")
+                  const capitulosPayload = temarioCapitulos
+                    .map((cap) => {
+                      const titulo = cap.titulo.trim()
+                      if (!titulo) return null
+                      const subcapitulos = cap.subcapitulos
+                        .map((sub) => ({ titulo: sub.titulo.trim() }))
+                        .filter((sub) => sub.titulo)
+                      return { titulo, subcapitulos }
+                    })
+                    .filter(Boolean) as { titulo: string; subcapitulos: { titulo: string }[] }[]
+
+                  await apiClient.projects.updateTemario(temarioProject.id, {
+                    capitulos: capitulosPayload,
+                    secciones: temarioSecciones,
+                  })
+                  toast({ title: "Temario actualizado", description: "Se guardaron los cambios correctamente." })
+                  setShowTemarioModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo guardar el temario"
+                  setTemarioError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setTemarioSaving(false)
+                }
+              }}
+            >
+              {temarioSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Guardar temario
             </Button>
           </DialogFooter>
         </DialogContent>

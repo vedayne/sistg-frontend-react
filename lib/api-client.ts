@@ -402,6 +402,33 @@ export const apiClient = {
     get: async (id: string | number) => apiClient.request<ProjectResponseDto>(`/projects/${id}`, {}),
     getByStudent: async (studentId: string | number) =>
       apiClient.request<ProjectResponseDto[]>(`/projects/student/${studentId}`, {}),
+    getTemario: async (id: string | number) =>
+      apiClient.request<{
+        documentoId: number | null
+        capitulos: { titulo: string; subcapitulos?: { titulo: string }[] }[]
+        secciones?: {
+          bibliografia?: boolean
+          anexos?: boolean
+          acronimos?: boolean
+          glosario?: boolean
+        }
+      }>(`/projects/${id}/temario`, {}),
+    updateTemario: async (
+      id: number,
+      data: {
+        capitulos: { titulo: string; subcapitulos?: { titulo: string }[] }[]
+        secciones?: {
+          bibliografia?: boolean
+          anexos?: boolean
+          acronimos?: boolean
+          glosario?: boolean
+        }
+      },
+    ) =>
+      apiClient.request<{ message: string; data: any }>(`/projects/${id}/temario`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
     create: async (data: CreateProjectDto) =>
       apiClient.request<{ message: string; data: ProjectResponseDto }>("/projects", {
         method: "POST",
