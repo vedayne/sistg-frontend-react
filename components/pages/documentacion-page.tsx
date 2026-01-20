@@ -25,6 +25,7 @@ export default function DocumentacionPage() {
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [showNotaModal, setShowNotaModal] = useState(false)
+  const [showCartaPerfilModal, setShowCartaPerfilModal] = useState(false)
   const [notaForm, setNotaForm] = useState({
     idProyecto: "",
     cite: "",
@@ -40,6 +41,14 @@ export default function DocumentacionPage() {
     ciudad: "LA PAZ",
     fecha: new Date().toISOString().slice(0, 10),
     fechaPresentacion: new Date().toISOString().slice(0, 10),
+  })
+  const [cartaPerfilForm, setCartaPerfilForm] = useState({
+    idProyecto: "",
+    cite: "",
+    ciudad: "LA PAZ",
+    fecha: new Date().toISOString().slice(0, 10),
+    fase: "",
+    anexos: "",
   })
   const [showActaModal, setShowActaModal] = useState(false)
   const [actaForm, setActaForm] = useState({
@@ -95,6 +104,7 @@ export default function DocumentacionPage() {
   const [memoAsignacionLoading, setMemoAsignacionLoading] = useState(false)
   const [avalLoading, setAvalLoading] = useState(false)
   const [notaEmpastadoLoading, setNotaEmpastadoLoading] = useState(false)
+  const [cartaPerfilLoading, setCartaPerfilLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -181,6 +191,11 @@ export default function DocumentacionPage() {
       if (hasMatch) return prev
       return { ...prev, fase: phases[0]?.name || "" }
     })
+    setCartaPerfilForm((prev) => {
+      const hasMatch = prev.fase && phases.some((fase) => fase.name === prev.fase)
+      if (hasMatch) return prev
+      return { ...prev, fase: phases[0]?.name || "" }
+    })
   }, [phases])
 
   const fetchFilesByType = async (type: DocumentTypeSummary) => {
@@ -220,6 +235,9 @@ export default function DocumentacionPage() {
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowNotaEmpastadoModal(true)}>
           <FilePlus className="w-4 h-4" /> Nota de Servicio Empastado
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={() => setShowCartaPerfilModal(true)}>
+          <FilePlus className="w-4 h-4" /> Carta Aprobación de Perfil
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowActaModal(true)}>
           <FilePlus className="w-4 h-4" /> Generar Acta (Borrador Final)
@@ -592,6 +610,122 @@ export default function DocumentacionPage() {
               }}
             >
               {notaEmpastadoLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Carta Aprobación de Perfil */}
+      <Dialog open={showCartaPerfilModal} onOpenChange={setShowCartaPerfilModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Carta Aprobación de Perfil</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>ID Proyecto</Label>
+              <Input
+                type="number"
+                value={cartaPerfilForm.idProyecto}
+                onChange={(e) => setCartaPerfilForm({ ...cartaPerfilForm, idProyecto: e.target.value })}
+                placeholder="ID del proyecto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={cartaPerfilForm.cite}
+                onChange={(e) => setCartaPerfilForm({ ...cartaPerfilForm, cite: e.target.value })}
+                placeholder="Ej. CITE-123/2024"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={cartaPerfilForm.ciudad}
+                onChange={(e) => setCartaPerfilForm({ ...cartaPerfilForm, ciudad: e.target.value })}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={cartaPerfilForm.fecha}
+                onChange={(e) => setCartaPerfilForm({ ...cartaPerfilForm, fecha: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Select
+                value={cartaPerfilForm.fase}
+                onValueChange={(value) => setCartaPerfilForm({ ...cartaPerfilForm, fase: value })}
+                disabled={phasesLoading || phases.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={phasesLoading ? "Cargando fases..." : "Selecciona fase"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((fase) => (
+                    <SelectItem key={fase.id} value={fase.name}>
+                      {fase.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Anexos (opcional)</Label>
+              <Input
+                value={cartaPerfilForm.anexos}
+                onChange={(e) => setCartaPerfilForm({ ...cartaPerfilForm, anexos: e.target.value })}
+                placeholder="S/A"
+              />
+            </div>
+            <div className="col-span-full text-xs text-muted-foreground">
+              Estudiante, docente TG y semestre se obtienen del proyecto en el backend.
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowCartaPerfilModal(false)}>Cancelar</Button>
+            <Button
+              disabled={cartaPerfilLoading}
+              onClick={async () => {
+                if (!cartaPerfilForm.idProyecto || !cartaPerfilForm.cite || !cartaPerfilForm.ciudad || !cartaPerfilForm.fecha || !cartaPerfilForm.fase) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, CITE, ciudad, fecha y fase son obligatorios",
+                  })
+                  return
+                }
+                try {
+                  setCartaPerfilLoading(true)
+                  const fechaLegible = new Date(cartaPerfilForm.fecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.cartaAprobacionPerfil({
+                    idProyecto: Number(cartaPerfilForm.idProyecto),
+                    cite: cartaPerfilForm.cite,
+                    ciudad: cartaPerfilForm.ciudad,
+                    fecha: fechaLegible,
+                    fase: cartaPerfilForm.fase,
+                    anexos: cartaPerfilForm.anexos || undefined,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Carta generada", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowCartaPerfilModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Aprobación"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setCartaPerfilLoading(false)
+                }
+              }}
+            >
+              {cartaPerfilLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>

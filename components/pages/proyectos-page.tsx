@@ -56,6 +56,12 @@ export default function ProyectosPage() {
   const [notaEmpastadoCiudad, setNotaEmpastadoCiudad] = useState("LA PAZ")
   const [notaEmpastadoFecha, setNotaEmpastadoFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [notaEmpastadoFechaPresentacion, setNotaEmpastadoFechaPresentacion] = useState(() => new Date().toISOString().slice(0, 10))
+  const [showCartaPerfilModal, setShowCartaPerfilModal] = useState(false)
+  const [cartaPerfilCite, setCartaPerfilCite] = useState("")
+  const [cartaPerfilCiudad, setCartaPerfilCiudad] = useState("LA PAZ")
+  const [cartaPerfilFecha, setCartaPerfilFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [cartaPerfilFase, setCartaPerfilFase] = useState("")
+  const [cartaPerfilAnexos, setCartaPerfilAnexos] = useState("")
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [faseSelected, setFaseSelected] = useState("")
@@ -88,12 +94,14 @@ export default function ProyectosPage() {
   const [memoAsignacionFecha, setMemoAsignacionFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [notaGenerating, setNotaGenerating] = useState(false)
   const [notaEmpastadoGenerating, setNotaEmpastadoGenerating] = useState(false)
+  const [cartaPerfilGenerating, setCartaPerfilGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
   const [memoGenerating, setMemoGenerating] = useState(false)
   const [memoAsignacionGenerating, setMemoAsignacionGenerating] = useState(false)
   const [avalGenerating, setAvalGenerating] = useState(false)
   const [notaError, setNotaError] = useState("")
   const [notaEmpastadoError, setNotaEmpastadoError] = useState("")
+  const [cartaPerfilError, setCartaPerfilError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
   const [actaError, setActaError] = useState("")
@@ -388,7 +396,7 @@ export default function ProyectosPage() {
   }, [showCreateModal, isStudent, user?.academico?.idSaga])
 
   useEffect(() => {
-    if ((showNotaModal || showActaModal || showAvalModal) && phases.length === 0) {
+    if ((showNotaModal || showActaModal || showAvalModal || showCartaPerfilModal) && phases.length === 0) {
       const loadPhases = async () => {
         try {
           setPhasesLoading(true)
@@ -396,6 +404,7 @@ export default function ProyectosPage() {
           setPhases(res as any)
           setFaseSelected((res as any)[0]?.name || "")
           setAvalFase((res as any)[0]?.name || "")
+          setCartaPerfilFase((res as any)[0]?.name || "")
         } catch (err) {
           console.error(err)
         } finally {
@@ -404,7 +413,7 @@ export default function ProyectosPage() {
       }
       loadPhases()
     }
-  }, [showNotaModal, showActaModal, showAvalModal, phases.length])
+  }, [showNotaModal, showActaModal, showAvalModal, showCartaPerfilModal, phases.length])
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este proyecto?")) return
@@ -947,6 +956,20 @@ export default function ProyectosPage() {
                     variant="outline"
                     onClick={() => {
                       const today = new Date().toISOString().slice(0, 10)
+                      setCartaPerfilFecha(today)
+                      setCartaPerfilCiudad("LA PAZ")
+                      setCartaPerfilCite(`CITE-PERFIL-${detailProject.id}-${new Date().getFullYear()}`)
+                      setCartaPerfilFase(phases[0]?.name || "")
+                      setCartaPerfilAnexos("")
+                      setShowCartaPerfilModal(true)
+                    }}
+                  >
+                    Carta Aprobación Perfil
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
                       setInvFecha(today)
                       setInvCite("")
                       setInvDestNombre(detailProject.docenteTutor?.nombreCompleto || "")
@@ -1222,6 +1245,102 @@ export default function ProyectosPage() {
             </Button>
           </DialogFooter>
           {notaEmpastadoError && <p className="text-xs text-red-600 mt-2">{notaEmpastadoError}</p>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Carta Aprobación de Perfil */}
+      <Dialog open={showCartaPerfilModal} onOpenChange={setShowCartaPerfilModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Carta Aprobación de Perfil</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2">
+              <Label>CITE</Label>
+              <Input
+                value={cartaPerfilCite}
+                onChange={(e) => setCartaPerfilCite(e.target.value)}
+                placeholder="Ej. CITE-123/2024"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Ciudad</Label>
+              <Input
+                value={cartaPerfilCiudad}
+                onChange={(e) => setCartaPerfilCiudad(e.target.value)}
+                placeholder="Ej. LA PAZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={cartaPerfilFecha} onChange={(e) => setCartaPerfilFecha(e.target.value)} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fase</Label>
+              <Select value={cartaPerfilFase} onValueChange={setCartaPerfilFase}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona fase" />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((f) => (
+                    <SelectItem key={f.id} value={f.name}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Anexos (opcional)</Label>
+              <Input value={cartaPerfilAnexos} onChange={(e) => setCartaPerfilAnexos(e.target.value)} placeholder="S/A" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El estudiante, semestre y docente TG se obtienen del proyecto.
+            </p>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowCartaPerfilModal(false)}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!detailProject) return
+                if (!cartaPerfilCite || !cartaPerfilCiudad || !cartaPerfilFecha || !cartaPerfilFase) {
+                  toast({ variant: "destructive", title: "CITE, ciudad, fecha y fase son obligatorios" })
+                  return
+                }
+                try {
+                  setCartaPerfilError("")
+                  setCartaPerfilGenerating(true)
+                  const fechaLegible = new Date(cartaPerfilFecha).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.cartaAprobacionPerfil({
+                    idProyecto: detailProject.id,
+                    cite: cartaPerfilCite,
+                    ciudad: cartaPerfilCiudad,
+                    fecha: fechaLegible,
+                    fase: cartaPerfilFase,
+                    anexos: cartaPerfilAnexos || undefined,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Carta generada", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowCartaPerfilModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Carta de Aprobación"
+                  setCartaPerfilError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setCartaPerfilGenerating(false)
+                }
+              }}
+              disabled={!detailProject || cartaPerfilGenerating}
+            >
+              {cartaPerfilGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {cartaPerfilError && <p className="text-xs text-red-600 mt-2">{cartaPerfilError}</p>}
         </DialogContent>
       </Dialog>
 

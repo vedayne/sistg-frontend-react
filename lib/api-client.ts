@@ -699,6 +699,21 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    cartaAprobacionPerfil: async (data: {
+      idProyecto: number
+      cite: string
+      ciudad: string
+      fecha: string
+      fase: string
+      anexos?: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/carta-aprobacion-perfil",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
     actaAprobacion: async (data: {
       idProyecto: number
       cite: string
