@@ -722,6 +722,30 @@ export const apiClient = {
           body: JSON.stringify(data),
         },
       ),
+    bitacora: async (data: {
+      idProyecto: number
+      fase: string
+      revisionPor: string
+      fechaDevolucion: string
+      detalles: {
+        detalle?: string
+        presentaObservacion?: boolean
+        observacionSubsanada?: boolean
+        conforme?: boolean
+      }[]
+      cumple: {
+        cumple?: boolean
+        noCumple?: boolean
+      }[]
+      observaciones?: string
+    }) =>
+      apiClient.request<{ success: boolean; archivoId: number; downloadUrl?: string; filename?: string }>(
+        "/reportes/bitacora",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
     actaAprobacion: async (data: {
       idProyecto: number
       cite: string

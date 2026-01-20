@@ -14,6 +14,28 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import type { ProjectResponseDto, CreateProjectDto, ResearchLine, Gestion, EstudianteBasicInfo, DocenteBasicInfo, UserBasicInfo, Phase } from "@/lib/types"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+
+const buildControlDetalles = () =>
+  Array.from({ length: 12 }, () => ({
+    detalle: "",
+    presentaObservacion: false,
+    observacionSubsanada: false,
+    conforme: false,
+  }))
+
+const buildControlCumple = () =>
+  Array.from({ length: 4 }, () => ({
+    cumple: false,
+    noCumple: false,
+  }))
+
+const controlCumpleLabels = [
+  "Cumplimiento de formato (Numeracion, Tipo de letra, Parrafo, Etc.)",
+  "Redaccion, gramatica y ortografia del trabajo",
+  "Relacion Titulo - Problematica - Objetivos",
+  "Profundidad y Pertinencia del Trabajo",
+]
 
 export default function ProyectosPage() {
   const { user } = useAuth()
@@ -66,6 +88,13 @@ export default function ProyectosPage() {
   const [informeRevisionCiudad, setInformeRevisionCiudad] = useState("LA PAZ")
   const [informeRevisionFecha, setInformeRevisionFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [informeRevisionFase, setInformeRevisionFase] = useState("")
+  const [showControlModal, setShowControlModal] = useState(false)
+  const [controlFase, setControlFase] = useState("")
+  const [controlRevisionPor, setControlRevisionPor] = useState("")
+  const [controlFechaDevolucion, setControlFechaDevolucion] = useState(() => new Date().toISOString().slice(0, 10))
+  const [controlDetalles, setControlDetalles] = useState(buildControlDetalles)
+  const [controlCumple, setControlCumple] = useState(buildControlCumple)
+  const [controlObservaciones, setControlObservaciones] = useState("")
   const [phases, setPhases] = useState<Phase[]>([])
   const [phasesLoading, setPhasesLoading] = useState(false)
   const [faseSelected, setFaseSelected] = useState("")
@@ -100,6 +129,7 @@ export default function ProyectosPage() {
   const [notaEmpastadoGenerating, setNotaEmpastadoGenerating] = useState(false)
   const [cartaPerfilGenerating, setCartaPerfilGenerating] = useState(false)
   const [informeRevisionGenerating, setInformeRevisionGenerating] = useState(false)
+  const [controlGenerating, setControlGenerating] = useState(false)
   const [actaGenerating, setActaGenerating] = useState(false)
   const [memoGenerating, setMemoGenerating] = useState(false)
   const [memoAsignacionGenerating, setMemoAsignacionGenerating] = useState(false)
@@ -108,6 +138,7 @@ export default function ProyectosPage() {
   const [notaEmpastadoError, setNotaEmpastadoError] = useState("")
   const [cartaPerfilError, setCartaPerfilError] = useState("")
   const [informeRevisionError, setInformeRevisionError] = useState("")
+  const [controlError, setControlError] = useState("")
   const [invError, setInvError] = useState("")
   const [aceError, setAceError] = useState("")
   const [actaError, setActaError] = useState("")
@@ -402,7 +433,15 @@ export default function ProyectosPage() {
   }, [showCreateModal, isStudent, user?.academico?.idSaga])
 
   useEffect(() => {
-    if ((showNotaModal || showActaModal || showAvalModal || showCartaPerfilModal || showInformeRevisionModal) && phases.length === 0) {
+    if (
+      (showNotaModal ||
+        showActaModal ||
+        showAvalModal ||
+        showCartaPerfilModal ||
+        showInformeRevisionModal ||
+        showControlModal) &&
+      phases.length === 0
+    ) {
       const loadPhases = async () => {
         try {
           setPhasesLoading(true)
@@ -412,6 +451,7 @@ export default function ProyectosPage() {
           setAvalFase((res as any)[0]?.name || "")
           setCartaPerfilFase((res as any)[0]?.name || "")
           setInformeRevisionFase((res as any)[0]?.name || "")
+          setControlFase((res as any)[0]?.name || "")
         } catch (err) {
           console.error(err)
         } finally {
@@ -420,7 +460,15 @@ export default function ProyectosPage() {
       }
       loadPhases()
     }
-  }, [showNotaModal, showActaModal, showAvalModal, showCartaPerfilModal, showInformeRevisionModal, phases.length])
+  }, [
+    showNotaModal,
+    showActaModal,
+    showAvalModal,
+    showCartaPerfilModal,
+    showInformeRevisionModal,
+    showControlModal,
+    phases.length,
+  ])
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este proyecto?")) return
@@ -989,6 +1037,21 @@ export default function ProyectosPage() {
                     variant="outline"
                     onClick={() => {
                       const today = new Date().toISOString().slice(0, 10)
+                      setControlFechaDevolucion(today)
+                      setControlRevisionPor(user?.persona?.nombreCompleto || user?.email || "")
+                      setControlFase(phases[0]?.name || "")
+                      setControlDetalles(buildControlDetalles())
+                      setControlCumple(buildControlCumple())
+                      setControlObservaciones("")
+                      setShowControlModal(true)
+                    }}
+                  >
+                    Bitacora
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10)
                       setInvFecha(today)
                       setInvCite("")
                       setInvDestNombre(detailProject.docenteTutor?.nombreCompleto || "")
@@ -1442,6 +1505,223 @@ export default function ProyectosPage() {
             </Button>
           </DialogFooter>
           {informeRevisionError && <p className="text-xs text-red-600 mt-2">{informeRevisionError}</p>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bitacora */}
+      <Dialog open={showControlModal} onOpenChange={setShowControlModal}>
+        <DialogContent className="!max-w-[58vw] !w-[58vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bitacora</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label>Fase</Label>
+                <Select value={controlFase} onValueChange={setControlFase}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona fase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {phases.map((f) => (
+                      <SelectItem key={f.id} value={f.name}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Fecha de devolucion</Label>
+                <Input
+                  type="date"
+                  value={controlFechaDevolucion}
+                  onChange={(e) => setControlFechaDevolucion(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2 md:col-span-2">
+                <Label>Revision por</Label>
+                <Input
+                  value={controlRevisionPor}
+                  onChange={(e) => setControlRevisionPor(e.target.value)}
+                  placeholder="Nombre del revisor"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Detalle de observaciones</div>
+              <div className="rounded-lg border">
+                <div className="grid grid-cols-[44px_minmax(0,1fr)_120px_140px_100px] gap-2 bg-muted px-2 py-2 text-[11px] font-semibold uppercase">
+                  <div className="text-center">Nº</div>
+                  <div>Detalle</div>
+                  <div className="text-center">Presenta</div>
+                  <div className="text-center">Subsanada</div>
+                  <div className="text-center">Conforme</div>
+                </div>
+                {controlDetalles.map((row, index) => (
+                  <div
+                    key={`detail-control-${index}`}
+                    className="grid grid-cols-[44px_minmax(0,1fr)_120px_140px_100px] gap-2 border-t text-sm items-center"
+                  >
+                    <div className="text-center">{index + 1}</div>
+                    <Input
+                      value={row.detalle}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setControlDetalles((prev) => {
+                          const next = [...prev]
+                          next[index] = { ...next[index], detalle: value }
+                          return next
+                        })
+                      }}
+                      placeholder=""
+                      className="h-8 border-0"
+                    />
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={row.presentaObservacion}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlDetalles((prev) => {
+                            const next = [...prev]
+                            next[index] = { ...next[index], presentaObservacion: value }
+                            return next
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={row.observacionSubsanada}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlDetalles((prev) => {
+                            const next = [...prev]
+                            next[index] = { ...next[index], observacionSubsanada: value }
+                            return next
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={row.conforme}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlDetalles((prev) => {
+                            const next = [...prev]
+                            next[index] = { ...next[index], conforme: value }
+                            return next
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Verificacion de cumplimiento</div>
+              <div className="rounded-lg border">
+                <div className="grid grid-cols-[44px_minmax(0,1fr)_120px_120px] gap-2 bg-muted px-2 py-2 text-[11px] font-semibold uppercase">
+                  <div className="text-center">Nº</div>
+                  <div>Detalle</div>
+                  <div className="text-center">Cumple</div>
+                  <div className="text-center">No cumple</div>
+                </div>
+                {controlCumpleLabels.map((label, index) => (
+                  <div
+                    key={`control-cumple-${index}`}
+                    className="grid grid-cols-[44px_minmax(0,1fr)_120px_120px] gap-2 border-t px-2 py-2 text-sm items-start"
+                  >
+                    <div className="text-center">{index + 1}</div>
+                    <div className="text-sm leading-snug">{label}</div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={controlCumple[index]?.cumple}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlCumple((prev) => {
+                            const next = [...prev]
+                            next[index] = { ...next[index], cumple: value }
+                            return next
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={controlCumple[index]?.noCumple}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlCumple((prev) => {
+                            const next = [...prev]
+                            next[index] = { ...next[index], noCumple: value }
+                            return next
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Observaciones</Label>
+              <Textarea
+                value={controlObservaciones}
+                onChange={(e) => setControlObservaciones(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowControlModal(false)}>Cancelar</Button>
+            <Button
+              disabled={controlGenerating}
+              onClick={async () => {
+                if (!detailProject) return
+                if (!controlFase || !controlRevisionPor || !controlFechaDevolucion) {
+                  toast({ variant: "destructive", title: "Fase, revisor y fecha son obligatorios" })
+                  return
+                }
+                try {
+                  setControlError("")
+                  setControlGenerating(true)
+                  const fechaLegible = new Date(controlFechaDevolucion).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.bitacora({
+                    idProyecto: detailProject.id,
+                    fase: controlFase,
+                    revisionPor: controlRevisionPor,
+                    fechaDevolucion: fechaLegible,
+                    detalles: controlDetalles,
+                    cumple: controlCumple,
+                    observaciones: controlObservaciones || undefined,
+                  })
+                  await openPreview(resp.archivoId, resp.filename, true)
+                  toast({ title: "Bitacora generada", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowControlModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Bitacora"
+                  setControlError(msg)
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setControlGenerating(false)
+                }
+              }}
+            >
+              {controlGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+          {controlError && <p className="text-xs text-red-600 mt-2">{controlError}</p>}
         </DialogContent>
       </Dialog>
 

@@ -12,9 +12,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { apiClient } from "@/lib/api-client"
 import type { DocumentTypeSummaryResponse, DocumentTypeSummary, DocumentFileRecord, Phase } from "@/lib/types"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { useAuth } from "@/contexts/auth-context"
+
+const buildControlDetalles = () =>
+  Array.from({ length: 12 }, () => ({
+    detalle: "",
+    presentaObservacion: false,
+    observacionSubsanada: false,
+    conforme: false,
+  }))
+
+const buildControlCumple = () =>
+  Array.from({ length: 4 }, () => ({
+    cumple: false,
+    noCumple: false,
+  }))
+
+const controlCumpleLabels = [
+  "Cumplimiento de formato (Numeracion, Tipo de letra, Parrafo, Etc.)",
+  "Redaccion, gramatica y ortografia del trabajo",
+  "Relacion Titulo - Problematica - Objetivos",
+  "Profundidad y Pertinencia del Trabajo",
+]
 
 export default function DocumentacionPage() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [summary, setSummary] = useState<DocumentTypeSummaryResponse | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -27,6 +52,7 @@ export default function DocumentacionPage() {
   const [showNotaModal, setShowNotaModal] = useState(false)
   const [showCartaPerfilModal, setShowCartaPerfilModal] = useState(false)
   const [showInformeRevisionModal, setShowInformeRevisionModal] = useState(false)
+  const [showControlModal, setShowControlModal] = useState(false)
   const [notaForm, setNotaForm] = useState({
     idProyecto: "",
     cite: "",
@@ -56,6 +82,15 @@ export default function DocumentacionPage() {
     ciudad: "LA PAZ",
     fecha: new Date().toISOString().slice(0, 10),
     fase: "",
+  })
+  const [controlForm, setControlForm] = useState({
+    idProyecto: "",
+    fase: "",
+    revisionPor: "",
+    fechaDevolucion: new Date().toISOString().slice(0, 10),
+    detalles: buildControlDetalles(),
+    cumple: buildControlCumple(),
+    observaciones: "",
   })
   const [showActaModal, setShowActaModal] = useState(false)
   const [actaForm, setActaForm] = useState({
@@ -113,6 +148,7 @@ export default function DocumentacionPage() {
   const [notaEmpastadoLoading, setNotaEmpastadoLoading] = useState(false)
   const [cartaPerfilLoading, setCartaPerfilLoading] = useState(false)
   const [informeRevisionLoading, setInformeRevisionLoading] = useState(false)
+  const [controlLoading, setControlLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -209,7 +245,21 @@ export default function DocumentacionPage() {
       if (hasMatch) return prev
       return { ...prev, fase: phases[0]?.name || "" }
     })
+    setControlForm((prev) => {
+      const hasMatch = prev.fase && phases.some((fase) => fase.name === prev.fase)
+      if (hasMatch) return prev
+      return { ...prev, fase: phases[0]?.name || "" }
+    })
   }, [phases])
+
+  useEffect(() => {
+    const nombre = user?.persona?.nombreCompleto?.trim()
+    if (!nombre) return
+    setControlForm((prev) => {
+      if (prev.revisionPor) return prev
+      return { ...prev, revisionPor: nombre }
+    })
+  }, [user?.persona?.nombreCompleto])
 
   const fetchFilesByType = async (type: DocumentTypeSummary) => {
     setSelectedType(type)
@@ -254,6 +304,24 @@ export default function DocumentacionPage() {
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowInformeRevisionModal(true)}>
           <FilePlus className="w-4 h-4" /> Informe Revisión
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            setControlForm({
+              idProyecto: "",
+              fase: phases[0]?.name || "",
+              revisionPor: user?.persona?.nombreCompleto || "",
+              fechaDevolucion: new Date().toISOString().slice(0, 10),
+              detalles: buildControlDetalles(),
+              cumple: buildControlCumple(),
+              observaciones: "",
+            })
+            setShowControlModal(true)
+          }}
+        >
+          <FilePlus className="w-4 h-4" /> Bitacora
         </Button>
         <Button variant="outline" className="gap-2" onClick={() => setShowActaModal(true)}>
           <FilePlus className="w-4 h-4" /> Generar Acta (Borrador Final)
@@ -840,6 +908,235 @@ export default function DocumentacionPage() {
               }}
             >
               {informeRevisionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Generar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Bitacora */}
+      <Dialog open={showControlModal} onOpenChange={setShowControlModal}>
+        <DialogContent className="max-w-[21.59cm] w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Bitacora</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label>ID Proyecto</Label>
+                <Input
+                  type="number"
+                  value={controlForm.idProyecto}
+                  onChange={(e) => setControlForm({ ...controlForm, idProyecto: e.target.value })}
+                  placeholder="ID del proyecto"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Fase</Label>
+                <Select
+                  value={controlForm.fase}
+                  onValueChange={(value) => setControlForm({ ...controlForm, fase: value })}
+                  disabled={phasesLoading || phases.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={phasesLoading ? "Cargando fases..." : "Selecciona fase"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {phases.map((fase) => (
+                      <SelectItem key={fase.id} value={fase.name}>
+                        {fase.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Revision por</Label>
+                <Input
+                  value={controlForm.revisionPor}
+                  onChange={(e) => setControlForm({ ...controlForm, revisionPor: e.target.value })}
+                  placeholder="Nombre del revisor"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Fecha de devolucion</Label>
+                <Input
+                  type="date"
+                  value={controlForm.fechaDevolucion}
+                  onChange={(e) => setControlForm({ ...controlForm, fechaDevolucion: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Detalle de observaciones</div>
+              <div className="rounded-lg border">
+                <div className="grid grid-cols-[44px_minmax(0,1fr)_120px_140px_100px] gap-2 bg-muted px-2 py-2 text-[11px] font-semibold uppercase">
+                  <div className="text-center">Nº</div>
+                  <div>Detalle</div>
+                  <div className="text-center">Presenta</div>
+                  <div className="text-center">Subsanada</div>
+                  <div className="text-center">Conforme</div>
+                </div>
+                {controlForm.detalles.map((row, index) => (
+                  <div
+                    key={`control-detalle-${index}`}
+                    className="grid grid-cols-[44px_minmax(0,1fr)_120px_140px_100px] gap-2 border-t px-2 py-2 text-sm items-center"
+                  >
+                    <div className="text-center">{index + 1}</div>
+                    <Input
+                      value={row.detalle}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setControlForm((prev) => {
+                          const detalles = [...prev.detalles]
+                          detalles[index] = { ...detalles[index], detalle: value }
+                          return { ...prev, detalles }
+                        })
+                      }}
+                      placeholder="Detalle"
+                      className="h-8"
+                    />
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={row.presentaObservacion}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlForm((prev) => {
+                            const detalles = [...prev.detalles]
+                            detalles[index] = { ...detalles[index], presentaObservacion: value }
+                            return { ...prev, detalles }
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={row.observacionSubsanada}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlForm((prev) => {
+                            const detalles = [...prev.detalles]
+                            detalles[index] = { ...detalles[index], observacionSubsanada: value }
+                            return { ...prev, detalles }
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={row.conforme}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlForm((prev) => {
+                            const detalles = [...prev.detalles]
+                            detalles[index] = { ...detalles[index], conforme: value }
+                            return { ...prev, detalles }
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Verificacion de cumplimiento</div>
+              <div className="rounded-lg border">
+                <div className="grid grid-cols-[44px_minmax(0,1fr)_120px_120px] gap-2 bg-muted px-2 py-2 text-[11px] font-semibold uppercase">
+                  <div className="text-center">Nº</div>
+                  <div>Detalle</div>
+                  <div className="text-center">Cumple</div>
+                  <div className="text-center">No cumple</div>
+                </div>
+                {controlCumpleLabels.map((label, index) => (
+                  <div
+                    key={`control-cumple-${index}`}
+                    className="grid grid-cols-[44px_minmax(0,1fr)_120px_120px] gap-2 border-t px-2 py-2 text-sm items-start"
+                  >
+                    <div className="text-center">{index + 1}</div>
+                    <div className="text-sm leading-snug">{label}</div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={controlForm.cumple[index]?.cumple}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlForm((prev) => {
+                            const cumple = [...prev.cumple]
+                            cumple[index] = { ...cumple[index], cumple: value }
+                            return { ...prev, cumple }
+                          })
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-center items-center">
+                      <Checkbox
+                        checked={controlForm.cumple[index]?.noCumple}
+                        onCheckedChange={(checked) => {
+                          const value = checked === true
+                          setControlForm((prev) => {
+                            const cumple = [...prev.cumple]
+                            cumple[index] = { ...cumple[index], noCumple: value }
+                            return { ...prev, cumple }
+                          })
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Observaciones</Label>
+              <Textarea
+                value={controlForm.observaciones}
+                onChange={(e) => setControlForm({ ...controlForm, observaciones: e.target.value })}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setShowControlModal(false)}>Cancelar</Button>
+            <Button
+              disabled={controlLoading}
+              onClick={async () => {
+                if (!controlForm.idProyecto || !controlForm.fase || !controlForm.revisionPor || !controlForm.fechaDevolucion) {
+                  toast({
+                    variant: "destructive",
+                    title: "ID de proyecto, fase, revisor y fecha son obligatorios",
+                  })
+                  return
+                }
+                try {
+                  setControlLoading(true)
+                  const fechaLegible = new Date(controlForm.fechaDevolucion).toLocaleDateString("es-BO", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                  const resp = await apiClient.reportes.bitacora({
+                    idProyecto: Number(controlForm.idProyecto),
+                    fase: controlForm.fase,
+                    revisionPor: controlForm.revisionPor,
+                    fechaDevolucion: fechaLegible,
+                    detalles: controlForm.detalles,
+                    cumple: controlForm.cumple,
+                    observaciones: controlForm.observaciones || undefined,
+                  })
+                  await openPreview(resp.archivoId, resp.filename)
+                  toast({ title: "Bitacora generada", description: "Se generó el PDF y se abrió la vista previa." })
+                  setShowControlModal(false)
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "No se pudo generar la Bitacora"
+                  toast({ variant: "destructive", title: "Error", description: msg })
+                } finally {
+                  setControlLoading(false)
+                }
+              }}
+            >
+              {controlLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Generar
             </Button>
           </DialogFooter>
