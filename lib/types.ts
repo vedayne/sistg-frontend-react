@@ -94,6 +94,7 @@ export interface EstudianteBasicInfo {
   email: string
   carrera?: string
   semestre?: string | null
+  ci?: string
 }
 
 export interface DocenteBasicInfo {

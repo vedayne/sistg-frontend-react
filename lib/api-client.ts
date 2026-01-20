@@ -278,6 +278,10 @@ export const apiClient = {
       search?: string
       especialidad?: string
       idSaga?: string | number
+      idEspecialidad?: number
+      idSemestre?: number
+      idGestion?: number
+      ci?: string
       isActive?: boolean
       sortBy?: "id" | "idSaga"
       sortOrder?: "asc" | "desc"
@@ -289,6 +293,10 @@ export const apiClient = {
       if (params?.search) query.append("search", params.search)
       if (params?.especialidad) query.append("especialidad", params.especialidad)
       if (params?.idSaga) query.append("idSaga", params.idSaga.toString())
+      if (params?.idEspecialidad) query.append("idEspecialidad", params.idEspecialidad.toString())
+      if (params?.idSemestre) query.append("idSemestre", params.idSemestre.toString())
+      if (params?.idGestion) query.append("idGestion", params.idGestion.toString())
+      if (params?.ci) query.append("ci", params.ci)
       if (typeof params?.isActive === "boolean") query.append("isActive", String(params.isActive))
       if (params?.sortBy) query.append("sortBy", params.sortBy)
       if (params?.sortOrder) query.append("sortOrder", params.sortOrder)
@@ -668,6 +676,7 @@ export const apiClient = {
         body: formData,
       })
     },
+    getMySchedules: async () => apiClient.request<{ ok: boolean; data: AdmEntrega[] }>("/entregas/mis-cronogramas", {}),
     getMySubmission: async (idAdmEntrega: number) =>
       apiClient.request<{ ok: boolean; data: EntregaDetalle }>(`/entregas/mis-entregas/${idAdmEntrega}`, {}),
     getPending: async () => apiClient.request<{ ok: boolean; data: EntregaDetalle[] }>("/entregas/pendientes", {}),
