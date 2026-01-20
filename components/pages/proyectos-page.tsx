@@ -1673,9 +1673,6 @@ export default function ProyectosPage() {
                 onChange={(e) => setNotaEmpastadoFechaPresentacion(e.target.value)}
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              El semestre y la gestión se obtienen del proyecto (solo 6to o 10mo semestre).
-            </p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowNotaEmpastadoModal(false)}>Cancelar</Button>
@@ -1773,9 +1770,6 @@ export default function ProyectosPage() {
               <Label>Anexos (opcional)</Label>
               <Input value={cartaPerfilAnexos} onChange={(e) => setCartaPerfilAnexos(e.target.value)} placeholder="S/A" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              El estudiante, semestre y docente TG se obtienen del proyecto.
-            </p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowCartaPerfilModal(false)}>Cancelar</Button>
@@ -1857,9 +1851,6 @@ export default function ProyectosPage() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-muted-foreground">
-              El resto de datos se obtiene del proyecto en el backend.
-            </p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowInformeRevisionModal(false)}>Cancelar</Button>
@@ -1932,7 +1923,6 @@ export default function ProyectosPage() {
               <Label>Fecha</Label>
               <Input type="date" value={temarioDocFecha} onChange={(e) => setTemarioDocFecha(e.target.value)} />
             </div>
-            <p className="text-xs text-muted-foreground">Usa el temario registrado en este proyecto.</p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowTemarioDocModal(false)}>Cancelar</Button>
@@ -2220,9 +2210,6 @@ export default function ProyectosPage() {
               <Label>Destinatario (cargo)</Label>
               <Input value={invDestCargo} onChange={(e) => setInvDestCargo(e.target.value)} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Usa el proyecto cargado en detalle para tomar estudiante y título.
-            </p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowInvitacionModal(false)}>Cancelar</Button>
@@ -2284,9 +2271,6 @@ export default function ProyectosPage() {
               <Label>Fecha</Label>
               <Input type="date" value={aceFecha} onChange={(e) => setAceFecha(e.target.value)} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Usa el proyecto cargado para traer estudiante, tutor y jefe de carrera.
-            </p>
           </div>
           <DialogFooter className="pt-4">
             <Button variant="outline" onClick={() => setShowAceptacionModal(false)}>Cancelar</Button>
