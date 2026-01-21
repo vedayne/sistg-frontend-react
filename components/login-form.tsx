@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Eye, EyeOff, Mail } from "lucide-react"
+import logo from "@/public/logo-emi-postgrado.png"
 
 interface LoginFormProps {
   onBackToHome?: () => void
@@ -217,8 +218,8 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
       <header className="border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <button onClick={onBackToHome} className="flex items-center gap-3 hover:opacity-80">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-primary/30">
-              <img src={"/emi_logo_png.webp"} alt="Logo EMI" className="w-8 h-8" />
+            <div className="w-30 h-full bg-white rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-primary/30">
+              <img src={logo.src} alt="Logo EMI" className="w-full h-full" />
             </div>
             <div className="text-left">
               <h1 className="font-bold text-xl text-primary leading-tight">SISTG</h1>

@@ -6,6 +6,7 @@ import { getAuthorizedMenuItems } from "@/lib/permissions"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ChevronUp, Shield, Menu, ChevronLeft, ChevronRight } from "lucide-react"
+import logo from "@/public/logo-emi-postgrado.png"
 
 interface SidebarProps {
   currentPage: string
@@ -27,8 +28,8 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
       <div className="p-6 border-b border-primary/20">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center font-bold text-primary shrink-0">
-              EMI
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center font-bold text-primary shrink-0">
+              <img src={logo.src} alt="Logo" className="w-full h-full object-contain" />
             </div>
             {!isCollapsed && (
               <div className="overflow-hidden">
@@ -118,3 +119,4 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     </aside>
   )
 }
+
