@@ -32,6 +32,7 @@ export default function EntregasPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pagination, setPagination] = useState<Pagination | null>(null)
+  const normalizeRoleName = (value: string) => value.replace(/[^A-Z0-9]/gi, "").toUpperCase()
   const normalizedRoles = (user?.roles ?? [])
     .map((role: any) => {
       if (typeof role === "string") return role
@@ -40,8 +41,9 @@ export default function EntregasPage() {
       if (typeof role?.role === "string") return role.role
       return null
     })
-    .filter(Boolean) as string[]
-  const hasRole = (roleName: string) => normalizedRoles.includes(roleName)
+    .filter(Boolean)
+    .map((role) => normalizeRoleName(String(role))) as string[]
+  const hasRole = (roleName: string) => normalizedRoles.includes(normalizeRoleName(roleName))
   const docenteId = user?.docenteId || user?.docente?.id || null
   const hasReviewerRole = ["DOCENTETG", "TUTOR", "REVISOR", "REVISOR1", "REVISOR2"].some((role) =>
     hasRole(role),

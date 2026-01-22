@@ -249,7 +249,7 @@ export const apiClient = {
       )
     },
 
-    fetchImage: async (path = "/profile/image") => {
+    fetchImage: async (path = "/profile/image"): Promise<Blob | null> => {
       const token = apiClient.getAccessToken()
       if (!token) throw new Error("No hay una sesión activa para obtener la imagen de perfil")
 
@@ -261,6 +261,10 @@ export const apiClient = {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       })
+
+      if (response.status === 404) {
+        return null
+      }
 
       if (!response.ok) {
         const errorMessage = await parseErrorMessage(response)

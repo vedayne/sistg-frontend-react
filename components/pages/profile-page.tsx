@@ -80,8 +80,10 @@ export default function ProfilePage() {
         }
         try {
           const blob = await apiClient.profile.fetchImage(imageUrl)
-          objectUrl = URL.createObjectURL(blob)
-          setProfileImage(objectUrl)
+          if (blob) {
+            objectUrl = URL.createObjectURL(blob)
+            setProfileImage(objectUrl)
+          }
           return
         } catch (err) {
           console.error("[v0] No se pudo obtener la foto de perfil:", err)

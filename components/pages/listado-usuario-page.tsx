@@ -173,6 +173,7 @@ export default function ListadoUsuarioPage() {
 
           try {
             const blob = await apiClient.profile.fetchImage(imageUrl)
+            if (!blob) return
             const objectUrl = URL.createObjectURL(blob)
             if (!isActive) {
               URL.revokeObjectURL(objectUrl)
