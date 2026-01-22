@@ -707,6 +707,19 @@ export const apiClient = {
       if (!response.ok) throw new Error("Error downloading file")
       return response.blob()
     },
+    downloadRevision: async (
+      id: number,
+      type: "docTG" | "docTutor" | "docRev1" | "docRev2",
+    ) => {
+      const token = apiClient.getAccessToken()
+      const response = await fetch(`${API_BASE_URL}/entregas/${id}/download/revision/${type}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      if (!response.ok) throw new Error("Error downloading file")
+      return response.blob()
+    },
   },
 
   reportes: {

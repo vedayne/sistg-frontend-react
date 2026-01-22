@@ -32,20 +32,30 @@ export default function EntregasPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pagination, setPagination] = useState<Pagination | null>(null)
-  const hasRole = (roleName: string) =>
-    (user?.roles ?? []).some((role: any) =>
-      typeof role === "string" ? role === roleName : role?.name === roleName,
-    )
-  const isStudent = hasRole("ESTUDIANTE")
-  const isReviewer = ["DOCENTETG", "TUTOR", "REVISOR", "REVISOR1", "REVISOR2"].some((role) =>
+  const normalizedRoles = (user?.roles ?? [])
+    .map((role: any) => {
+      if (typeof role === "string") return role
+      if (role?.name) return role.name
+      if (role?.role?.name) return role.role.name
+      if (typeof role?.role === "string") return role.role
+      return null
+    })
+    .filter(Boolean) as string[]
+  const hasRole = (roleName: string) => normalizedRoles.includes(roleName)
+  const docenteId = user?.docenteId || user?.docente?.id || null
+  const hasReviewerRole = ["DOCENTETG", "TUTOR", "REVISOR", "REVISOR1", "REVISOR2"].some((role) =>
     hasRole(role),
   )
+  const hasStudentProfile = Boolean(user?.academico?.codAlumno)
+  const isStudent = hasStudentProfile
+  const isReviewer = hasReviewerRole
   const [studentProject, setStudentProject] = useState<ProjectResponseDto | null>(null)
   const [mySchedules, setMySchedules] = useState<AdmEntrega[]>([])
   const [mySchedulesLoading, setMySchedulesLoading] = useState(false)
   const [mySchedulesError, setMySchedulesError] = useState<string | null>(null)
   const [myDeliveries, setMyDeliveries] = useState<EntregaDetalle[]>([])
   const [myDeliveriesLoading, setMyDeliveriesLoading] = useState(false)
+  const [myDeliveriesError, setMyDeliveriesError] = useState<string | null>(null)
   const [showCronogramasModal, setShowCronogramasModal] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>("")
@@ -141,7 +151,7 @@ export default function EntregasPage() {
     } finally {
       setCatalogLoading(false)
     }
-  }, [])
+  }, [user?.docenteId, user?.docente?.id])
 
   const loadPhases = useCallback(async () => {
     setPhasesLoading(true)
@@ -155,7 +165,7 @@ export default function EntregasPage() {
     } finally {
       setPhasesLoading(false)
     }
-  }, [])
+  }, [docenteId])
 
   const fetchEntregas = useCallback(async () => {
     setLoading(true)
@@ -206,11 +216,13 @@ export default function EntregasPage() {
 
   const fetchMyDeliveries = useCallback(async () => {
     setMyDeliveriesLoading(true)
+    setMyDeliveriesError(null)
     try {
       const response = await apiClient.entregas.getMyDeliveries()
       setMyDeliveries(response.data ?? [])
     } catch (err) {
       console.error("Error fetching entregas del estudiante:", err)
+      setMyDeliveriesError("No se pudieron cargar tus entregas.")
     } finally {
       setMyDeliveriesLoading(false)
     }
@@ -340,6 +352,11 @@ export default function EntregasPage() {
       fetchStudentProject()
     }
   }, [isStudent, fetchMySchedules, fetchMyDeliveries, fetchStudentProject])
+
+  useEffect(() => {
+    if (!isStudent) return
+    fetchMyDeliveries()
+  }, [isStudent, fetchMyDeliveries])
 
   useEffect(() => {
     if (isReviewer) {
@@ -512,7 +529,7 @@ export default function EntregasPage() {
       })
       return rows
     }
-    if (isStudent) {
+    if (isStudent || myDeliveries.length > 0) {
       studentDeliveries.forEach(({ entrega, cronograma }) => {
         rows.push({
           entrega,
@@ -522,7 +539,7 @@ export default function EntregasPage() {
       })
     }
     return rows
-  }, [isStudent, isReviewer, studentDeliveries, pendingEntregas, studentLabel])
+  }, [isStudent, isReviewer, studentDeliveries, pendingEntregas, myDeliveries.length])
 
   const [showEntregaDetail, setShowEntregaDetail] = useState(false)
   const [selectedEntregaDetail, setSelectedEntregaDetail] = useState<{
@@ -725,10 +742,39 @@ export default function EntregasPage() {
       if (isReviewer) {
         fetchPendingEntregas()
       } else if (isStudent) {
-        fetchMySchedules()
+        fetchMyDeliveries()
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo descargar el archivo."
+      setReviewError(message)
+    }
+  }
+
+  const handleDownloadRevisionFile = async (
+    entrega: EntregaDetalle,
+    type: "docTG" | "docTutor" | "docRev1" | "docRev2",
+  ) => {
+    try {
+      const blob = await apiClient.entregas.downloadRevision(entrega.id, type)
+      const fallbackName = `revision_${type}.pdf`
+      const originalName =
+        type === "docTG"
+          ? entrega.archRevDocTG?.originalName || fallbackName
+          : type === "docTutor"
+            ? entrega.archRevDocTutor?.originalName || fallbackName
+            : type === "docRev1"
+              ? entrega.archRevDocRev1?.originalName || fallbackName
+              : entrega.archRevDocRev2?.originalName || fallbackName
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = originalName
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo descargar la revisión."
       setReviewError(message)
     }
   }
@@ -872,9 +918,19 @@ export default function EntregasPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {hasRole("ESTUDIANTE") && !isStudent && (
+              <div className="bg-amber-50 text-amber-700 border border-amber-200 text-sm rounded-md p-3 mb-4">
+                Tu usuario tiene el rol de estudiante, pero no está vinculado a un registro académico.
+              </div>
+            )}
             {isStudent && mySchedulesError && (
               <div className="bg-red-50 text-red-700 border border-red-200 text-sm rounded-md p-3 mb-4">
                 {mySchedulesError}
+              </div>
+            )}
+            {(isStudent || myDeliveries.length > 0) && myDeliveriesError && (
+              <div className="bg-red-50 text-red-700 border border-red-200 text-sm rounded-md p-3 mb-4">
+                {myDeliveriesError}
               </div>
             )}
             {isReviewer && !isStudent && pendingError && (
@@ -1640,6 +1696,50 @@ export default function EntregasPage() {
                         </p>
                       )}
                     </div>
+
+                    {isStudent &&
+                      (selectedEntregaDetail.entrega.archRevDocTG ||
+                        selectedEntregaDetail.entrega.archRevDocTutor ||
+                        selectedEntregaDetail.entrega.archRevDocRev1 ||
+                        selectedEntregaDetail.entrega.archRevDocRev2) && (
+                        <div className="grid gap-3 pt-2">
+                          <p className="text-xs text-muted-foreground">Correcciones disponibles</p>
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {selectedEntregaDetail.entrega.archRevDocTG && (
+                              <Button
+                                variant="outline"
+                                onClick={() => handleDownloadRevisionFile(selectedEntregaDetail.entrega, "docTG")}
+                              >
+                                Descargar Docente TG
+                              </Button>
+                            )}
+                            {selectedEntregaDetail.entrega.archRevDocTutor && (
+                              <Button
+                                variant="outline"
+                                onClick={() => handleDownloadRevisionFile(selectedEntregaDetail.entrega, "docTutor")}
+                              >
+                                Descargar Tutor
+                              </Button>
+                            )}
+                            {selectedEntregaDetail.entrega.archRevDocRev1 && (
+                              <Button
+                                variant="outline"
+                                onClick={() => handleDownloadRevisionFile(selectedEntregaDetail.entrega, "docRev1")}
+                              >
+                                Descargar Revisor 1
+                              </Button>
+                            )}
+                            {selectedEntregaDetail.entrega.archRevDocRev2 && (
+                              <Button
+                                variant="outline"
+                                onClick={() => handleDownloadRevisionFile(selectedEntregaDetail.entrega, "docRev2")}
+                              >
+                                Descargar Revisor 2
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                     {isReviewer && (
                       <>
