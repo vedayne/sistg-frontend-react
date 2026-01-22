@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Mail, Phone, MapPin, Globe, LogIn, ChevronLeft, ChevronRight, ArrowUp } from "lucide-react"
 import InteractiveMapSection from "./interactive-map-section"
+import logo from "@/public/logo-emi-postgrado.png"
 
 const unidadesAcademicas = [
   {
@@ -115,10 +116,10 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="w-full mx-auto pl-4 pr-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
-              <img src={"/emi_logo_png.webp"} alt="Logo EMI" className="w-8 h-8" />
+            <div className="w-30 h-full bg-white rounded-lg flex items-center justify-center text-white font-bold text-xl">
+              <img src={logo.src} alt="Logo EMI" className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="font-bold text-lg text-primary">SISTG</h1>
