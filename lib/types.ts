@@ -46,6 +46,7 @@ export interface AcademicoEstudiante {
   fuerza?: "Civil" | "Militar"
   inscrito?: number
   semestreActual?: string | { id: number; name: string; code: string } | null
+  gestionActual?: "I" | "II" | null
   profesion?: string
   grado?: string
 }

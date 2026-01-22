@@ -36,6 +36,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"perfil" | "sesiones">("perfil")
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [uploadMessage, setUploadMessage] = useState("")
+  const [isLoadingProfileImage, setIsLoadingProfileImage] = useState(false)
   const [isFetchingSessions, setIsFetchingSessions] = useState(false)
   const [passwordData, setPasswordData] = useState({
     current: "",
@@ -55,47 +56,58 @@ export default function ProfilePage() {
   const [isUpdatingSemestre, setIsUpdatingSemestre] = useState(false)
   const [semestreMessage, setSemestreMessage] = useState("")
   const [semestreError, setSemestreError] = useState("")
+  const [selectedGestionType, setSelectedGestionType] = useState("")
+  const [isUpdatingGestion, setIsUpdatingGestion] = useState(false)
+  const [gestionMessage, setGestionMessage] = useState("")
+  const [gestionError, setGestionError] = useState("")
   const isStudent = Boolean(user?.academico?.codAlumno)
 
   useEffect(() => {
     let objectUrl: string | null = null
 
     const loadProfileImage = async () => {
+      setIsLoadingProfileImage(true)
       const imageUrl = user?.imageUrl
-      if (imageUrl) {
-        const isAbsolute = imageUrl.startsWith("http://") || imageUrl.startsWith("https://")
-        let shouldFetch = !isAbsolute
-        if (isAbsolute) {
+      try {
+        if (imageUrl) {
+          const isAbsolute = imageUrl.startsWith("http://") || imageUrl.startsWith("https://")
+          let shouldFetch = !isAbsolute
+          if (isAbsolute) {
+            try {
+              const apiOrigin = new URL(API_BASE_URL).origin
+              const imageOrigin = new URL(imageUrl).origin
+              shouldFetch = apiOrigin === imageOrigin
+            } catch {
+              shouldFetch = false
+            }
+          }
+          if (!shouldFetch) {
+            setProfileImage(imageUrl)
+            return
+          }
           try {
-            const apiOrigin = new URL(API_BASE_URL).origin
-            const imageOrigin = new URL(imageUrl).origin
-            shouldFetch = apiOrigin === imageOrigin
-          } catch {
-            shouldFetch = false
+            const blob = await apiClient.profile.fetchImage(imageUrl)
+            if (blob) {
+              objectUrl = URL.createObjectURL(blob)
+              setProfileImage(objectUrl)
+            } else {
+              setProfileImage(null)
+            }
+            return
+          } catch (err) {
+            console.error("[v0] No se pudo obtener la foto de perfil:", err)
           }
         }
-        if (!shouldFetch) {
-          setProfileImage(imageUrl)
+
+        if (user?.fotoPerfil?.remotepath?.startsWith("http")) {
+          setProfileImage(user.fotoPerfil.remotepath)
           return
         }
-        try {
-          const blob = await apiClient.profile.fetchImage(imageUrl)
-          if (blob) {
-            objectUrl = URL.createObjectURL(blob)
-            setProfileImage(objectUrl)
-          }
-          return
-        } catch (err) {
-          console.error("[v0] No se pudo obtener la foto de perfil:", err)
-        }
-      }
 
-      if (user?.fotoPerfil?.remotepath?.startsWith("http")) {
-        setProfileImage(user.fotoPerfil.remotepath)
-        return
+        setProfileImage(null)
+      } finally {
+        setIsLoadingProfileImage(false)
       }
-
-      setProfileImage(null)
     }
 
     loadProfileImage()
@@ -145,6 +157,16 @@ export default function ProfilePage() {
       setSelectedSemestreId("")
     }
   }, [user, isStudent, user?.academico?.semestreActual])
+
+  useEffect(() => {
+    if (!user || !isStudent) return
+    const gestion = user.academico?.gestionActual
+    if (gestion === "I" || gestion === "II") {
+      setSelectedGestionType(gestion)
+    } else if (gestion === null || gestion === undefined) {
+      setSelectedGestionType("")
+    }
+  }, [user, isStudent, user?.academico?.gestionActual])
 
   useEffect(() => {
     if (activeTab === "sesiones") {
@@ -246,6 +268,29 @@ export default function ProfilePage() {
     }
   }
 
+  const handleUpdateGestion = async () => {
+    if (!selectedGestionType) {
+      setGestionError("Selecciona una gestión válida")
+      setGestionMessage("")
+      return
+    }
+
+    setGestionError("")
+    setGestionMessage("")
+    setIsUpdatingGestion(true)
+
+    try {
+      await apiClient.profile.updateGestion(selectedGestionType as "I" | "II")
+      await refreshProfile()
+      setGestionMessage("Gestión actualizada correctamente")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo actualizar la gestión"
+      setGestionError(message)
+    } finally {
+      setIsUpdatingGestion(false)
+    }
+  }
+
   const handleChangePassword = async () => {
     setPasswordError("")
     setPasswordSuccess("")
@@ -297,6 +342,7 @@ export default function ProfilePage() {
     if (typeof semestre === "object" && semestre?.id) return String(semestre.id)
     return ""
   })()
+  const gestionActual = user.academico?.gestionActual ?? ""
 
   const parseUserAgent = (ua: string) => {
     const isChromeMatch = ua.match(/Chrome\/(\d+)/)
@@ -368,6 +414,11 @@ export default function ProfilePage() {
                     alt="Perfil"
                     className="w-40 h-40 rounded-lg object-cover border-4 border-primary/20"
                   />
+                  {isLoadingProfileImage && (
+                    <div className="absolute inset-0 rounded-lg bg-background/70 flex items-center justify-center">
+                      <Spinner />
+                    </div>
+                  )}
                   <label className="absolute bottom-2 right-2 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90">
                     <Camera className="w-4 h-4" />
                     <input
@@ -380,6 +431,7 @@ export default function ProfilePage() {
                   </label>
                 </div>
                 {uploadMessage && <p className="text-xs text-green-600 dark:text-green-400">{uploadMessage}</p>}
+                {isLoadingProfileImage && <p className="text-xs text-muted-foreground">Cargando foto...</p>}
                 {isUploadingImage && <p className="text-xs text-muted-foreground">Subiendo foto...</p>}
                 <Button
                   onClick={() => setShowPasswordDialog(true)}
@@ -525,6 +577,38 @@ export default function ProfilePage() {
                     </div>
                     {semestreMessage && <p className="text-xs text-green-600 dark:text-green-400">{semestreMessage}</p>}
                     {semestreError && <p className="text-xs text-red-600 dark:text-red-400">{semestreError}</p>}
+                  </div>
+                )}
+                {userType === "estudiante" && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-muted-foreground">Gestión Actual</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Select
+                        value={selectedGestionType}
+                        onValueChange={(value) => {
+                          setSelectedGestionType(value)
+                          setGestionError("")
+                          setGestionMessage("")
+                        }}
+                        disabled={isUpdatingGestion}
+                      >
+                        <SelectTrigger className="w-full sm:w-52">
+                          <SelectValue placeholder={gestionActual || "Selecciona gestión"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="I">I</SelectItem>
+                          <SelectItem value="II">II</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={handleUpdateGestion}
+                        disabled={isUpdatingGestion || !selectedGestionType || selectedGestionType === gestionActual}
+                      >
+                        {isUpdatingGestion ? "Guardando..." : "Guardar"}
+                      </Button>
+                    </div>
+                    {gestionMessage && <p className="text-xs text-green-600 dark:text-green-400">{gestionMessage}</p>}
+                    {gestionError && <p className="text-xs text-red-600 dark:text-red-400">{gestionError}</p>}
                   </div>
                 )}
                 {userType === "docente" && (

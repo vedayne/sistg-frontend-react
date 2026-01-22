@@ -237,6 +237,12 @@ export const apiClient = {
         body: JSON.stringify({ semestreId }),
       }),
 
+    updateGestion: async (typeGestion: "I" | "II") =>
+      apiClient.request<{ message: string; data?: "I" | "II" | null }>("/profile/gestion", {
+        method: "PATCH",
+        body: JSON.stringify({ typeGestion }),
+      }),
+
     uploadImage: async (image: File) => {
       const formData = new FormData()
       formData.append("image", image)
