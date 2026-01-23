@@ -627,7 +627,7 @@ export default function ProfilePage() {
         <TabsContent value="sesiones" className="space-y-6">
           <div className="flex flex-col md:flex-row md:flex-wrap items-start md:items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-primary mb-1">Sesiones Activas</h1>
+              <h1 className="text-3xl font-bold text-primary mb-1 dark:text-white">Sesiones Activas</h1>
               <p className="text-muted-foreground">Gestiona tus sesiones en diferentes dispositivos</p>
             </div>
             <div className="flex gap-2 w-full md:w-auto">
@@ -670,7 +670,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="border-primary/20 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-primary">
+                  <CardTitle className="flex items-center gap-2 text-primary dark:text-white">
                     <Smartphone className="w-4 h-4" />
                     Sesión actual
                   </CardTitle>
