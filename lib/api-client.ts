@@ -15,13 +15,13 @@ import type {
   AdmEntrega,
   EntregaDetalle,
   StudentDocumentsResponse,
-  DocumentInfo,
   Pagination,
   Defensa,
+  FilesByTypeResponse,
+  DocumentTypeSummaryResponse,
 } from "./types"
 
-// const API_BASE_URL = "https://sistg-backend.onrender.com/rtg"
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/rtg"
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || ""
 
 const resolveApiUrl = (path: string) =>
   path.startsWith("http://") || path.startsWith("https://") ? path : `${API_BASE_URL}${path}`
@@ -33,7 +33,7 @@ const normalizeApiPath = (path: string) => {
       return path.slice(basePath.length)
     }
   } catch {
-    // ignore URL parsing errors and fall back to the original path
+    console.error("Error normalizing API")
   }
   return path
 }
@@ -58,7 +58,6 @@ let refreshingPromise: Promise<string | null> | null = null
 
 type RequestOptions = RequestInit & {
   skipAuth?: boolean
-  /** internal flag to avoid loops when reintentando */
   _isRefreshRequest?: boolean
   _retryAttempted?: boolean
 }
@@ -101,7 +100,7 @@ export const apiClient = {
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: "include", // Incluir cookies para que envíe el refresh token
+          credentials: "include",
         })
 
         if (!refreshResponse.ok) {
