@@ -29,10 +29,6 @@ function ForgotPasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     setSuccess(false)
 
     try {
-      // API call to request password reset
-      // This would be: POST /auth/forgot-password with { email }
-      // The backend would send an email to the institutional email address
-      console.log("Requesting password reset for:", email)
       setSuccess(true)
       setTimeout(() => {
         setEmail("")
@@ -174,7 +170,6 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
 
   const handleNewSession = () => {
     setShowResumeSession(false)
-    // Clear session and let user login again
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -222,7 +217,7 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
               <img src={logo.src} alt="Logo EMI" className="w-full h-full" />
             </div>
             <div className="text-left">
-              <h1 className="font-bold text-xl text-primary leading-tight">SISTG</h1>
+              <h1 className="font-bold text-xl text-primary leading-tight dark:text-white">RTG</h1>
               <p className="text-xs text-muted-foreground">Sistema de Gestión de Trabajos de Grado</p>
             </div>
           </button>
@@ -233,7 +228,7 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
         <div className="w-full max-w-lg">
           <Card className="shadow-xl border-primary/10">
             <CardHeader className="space-y-2">
-              <CardTitle className="text-3xl text-primary">Iniciar Sesión</CardTitle>
+              <CardTitle className="text-3xl text-primary dark:text-white">Iniciar Sesión</CardTitle>
               <CardDescription>Usa tu correo institucional EMI y contraseña</CardDescription>
             </CardHeader>
             <CardContent>
@@ -287,23 +282,16 @@ export default function LoginForm({ onBackToHome, onLoginSuccess }: LoginFormPro
               <div className="mt-4 text-center">
                 <button
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-primary hover:text-primary/80 underline font-medium"
+                  className="text-sm text-primary hover:text-primary/80 underline font-medium dark:text-white"
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
-              </div>
-
-              <div className="mt-4 p-3 bg-secondary/20 rounded-lg text-sm">
-                <p className="font-medium text-foreground mb-2">Para probar el sistema:</p>
-                <p className="text-muted-foreground text-xs mb-1">Email: mlipay@est.emi.edu.bo</p>
-                <p className="text-muted-foreground text-xs">
-                  Contraseña: Debe coincidir con la base de datos de la EMI
-                </p>
               </div>
             </CardContent>
           </Card>
         </div>
       </main>
+      <span className="absolute bottom-4 right-4 text-[5px] opacity-40 tracking-wide">development malydev</span>
 
       <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
         <DialogContent className="max-w-sm">

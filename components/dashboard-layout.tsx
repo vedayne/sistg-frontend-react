@@ -111,8 +111,12 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-background">{renderPage()}</main>
+        <main className="flex-1 overflow-auto bg-background">
+          {renderPage()}
+          <div className="px-6 py-4 text-right">
+            <span className="text-[5px] opacity-40 tracking-wide">development malydev</span>
+          </div>
+        </main>
       </div>
     </div>
   )

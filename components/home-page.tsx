@@ -63,6 +63,7 @@ export default function HomePage() {
   const router = useRouter()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const [year, setYear] = useState(new Date().getFullYear())
 
   const carouselImages = [
     {
@@ -122,7 +123,7 @@ export default function HomePage() {
               <img src={logo.src} alt="Logo EMI" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h1 className="font-bold text-lg text-primary">SISTG</h1>
+              <h1 className="font-bold text-lg text-primary dark:text-white">RTG</h1>
               <p className="text-xs text-muted-foreground">Sistema de Gestión de TG</p>
             </div>
           </div>
@@ -202,20 +203,20 @@ export default function HomePage() {
       {/* Repositorios */}
       <section className="py-12 bg-secondary/20">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-center text-3xl font-bold mb-8 text-primary">
+          <h2 className="text-center text-3xl font-bold mb-8 text-primary dark:text-white">
             ENLACES A LOS REPOSITORIOS DE TRABAJOS DE GRADO
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="border-2 border-primary/20 hover:shadow-lg transition-shadow">
               <CardHeader className="text-center">
-                <CardTitle className="text-2xl text-primary">REPOSITORIO GRADO</CardTitle>
+                <CardTitle className="text-2xl text-primary dark:text-white">REPOSITORIO GRADO</CardTitle>
                 <CardDescription>Acceso a trabajos de grado completados</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <a href="https://repositoriogrado.net.emi.edu.bo/#/" target="_blank" rel="noopener noreferrer">
                   <Button
                     variant="outline"
-                    className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+                    className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent dark:text-white"
                   >
                     Ir al Repositorio
                   </Button>
@@ -223,16 +224,16 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-primary/20 hover:shadow-lg transition-shadow">
+            <Card className="border-2 border-primary/20 hover:shadow-lg transition-shadow bg">
               <CardHeader>
-                <CardTitle className="text-2xl text-primary">REPOSITORIO POSGRADO</CardTitle>
+                <CardTitle className="text-2xl text-primary dark:text-white">REPOSITORIO POSGRADO</CardTitle>
                 <CardDescription>Acceso a trabajos de posgrado completados</CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <a href="https://repositorioposgrado.dev.emi.edu.bo/#/" target="_blank" rel="noopener noreferrer">
                   <Button
                     variant="outline"
-                    className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent"
+                    className="border-primary text-primary hover:bg-primary hover:text-white bg-transparent dark:text-white"
                   >
                     Ir al Repositorio
                   </Button>
@@ -249,28 +250,28 @@ export default function HomePage() {
       {/* Contacto Section */}
       <section className="py-16 bg-background" id="contacto">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-primary">CONTACTO</h2>
+          <h2 className="text-3xl font-bold text-center mb-12 text-primary dark:text-white">CONTACTO</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {unidadesAcademicas.map((unidad) => (
               <Card key={unidad.id} className="border-l-4 border-l-primary hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-base text-primary">{unidad.nombre}</CardTitle>
+                  <CardTitle className="text-base text-primary dark:text-white">{unidad.nombre}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex gap-3">
-                    <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
+                    <MapPin className="w-5 h-5  dark:text-white flex-shrink-0" />
                     <p>{unidad.ubicacion}</p>
                   </div>
                   <div className="flex gap-3">
-                    <Mail className="w-5 h-5 text-primary flex-shrink-0" />
+                    <Mail className="w-5 h-5  dark:text-white flex-shrink-0" />
                     <p className="break-all">{unidad.email}</p>
                   </div>
                   <div className="flex gap-3">
-                    <Phone className="w-5 h-5 text-primary flex-shrink-0" />
+                    <Phone className="w-5 h-5  dark:text-white flex-shrink-0" />
                     <p>{unidad.telefono}</p>
                   </div>
                   <div className="flex gap-3">
-                    <Globe className="w-5 h-5 text-primary flex-shrink-0" />
+                    <Globe className="w-5 h-5  dark:text-white flex-shrink-0" />
                     <p>{unidad.web}</p>
                   </div>
                 </CardContent>
@@ -284,9 +285,10 @@ export default function HomePage() {
       <footer className="bg-primary text-primary-foreground py-8 text-center">
         <div className="max-w-7xl mx-auto px-4">
           <p className="mb-2">
-            &copy; 2025 EMI - Sistema de Gestión de Trabajos de Grado. Todos los derechos reservados.
+            &copy; {year} EMI - Sistema de Gestión de Trabajos de Grado. Todos los derechos reservados.
           </p>
           <p className="text-sm opacity-90">Plataforma desarrollada para la Escuela Militar de Ingeniería</p>
+          <p className="text-[5px] opacity-60 tracking-wide mt-2">development malydev | EMI | mevf</p>
         </div>
       </footer>
 

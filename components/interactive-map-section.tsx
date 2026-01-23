@@ -185,10 +185,10 @@ const InfoCard: React.FC<InfoCardProps> = ({ seatInfo, isVisible }) => {
 
   return (
     <div className="glass neon-border rounded-lg p-6 animate-fade-in">
-      <h4 className="text-2xl font-black text-navy-900 mb-4">
+      <h4 className="text-2xl font-black text-primary dark:text-white mb-4">
         {seatInfo.title}
       </h4>
-      <div className="space-y-3 text-sm font-semibold text-slate-700">
+      <div className="space-y-3 text-sm font-semibold text-slate-700 dark:text-white">
         <p>
           📍 {seatInfo.directions.join(' | ')}
         </p>
@@ -358,7 +358,7 @@ const InteractiveMapSection: React.FC = () => {
 
       <div className="w-full">
         {/* Section Title */}
-        <h2 className="text-5xl md:text-6xl font-black text-navy-900 mb-4 text-center">
+        <h2 className="text-5xl md:text-6xl font-black mb-4 text-center text-primary dark:text-white">
           UBICACIONES
         </h2>
         <div className="w-24 h-1 gold-accent mx-auto rounded-full mb-16"></div>
