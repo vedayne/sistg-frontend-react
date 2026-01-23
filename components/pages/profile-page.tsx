@@ -397,7 +397,7 @@ export default function ProfilePage() {
 
         <TabsContent value="perfil" className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-primary mb-2">Mi Perfil</h1>
+            <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Mi Perfil</h1>
             <p className="text-muted-foreground">Información personal y datos académicos</p>
           </div>
 
@@ -447,7 +447,7 @@ export default function ProfilePage() {
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle>Información Personal</CardTitle>
-                <CardDescription>Datos de tu perfil desde SAGA</CardDescription>
+                <CardDescription>Datos de tu personales</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -488,9 +488,7 @@ export default function ProfilePage() {
                     <p className="font-medium text-foreground">{user.persona?.sexo || "N/A"}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">
-                      Fuerza / Condición
-                    </label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Fuerza</label>
                     <p className="font-medium text-foreground">{fuerzaLabel}</p>
                   </div>
                 </div>

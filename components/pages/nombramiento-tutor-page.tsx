@@ -96,7 +96,7 @@ export default function NombramientoTutorPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary mb-2">Nombramiento de Tutor</h1>
+        <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Nombramiento de Tutor</h1>
         <p className="text-muted-foreground">Registra y gestiona tu tutor de trabajo de grado</p>
       </div>
 

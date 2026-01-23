@@ -106,7 +106,7 @@ export default function AsignacionRolesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-primary flex items-center gap-2 dark:text-white">
             <ShieldCheck className="w-5 h-5" /> Asignación de Roles
           </h1>
           <p className="text-muted-foreground text-sm">Busca usuarios y asigna roles activos.</p>

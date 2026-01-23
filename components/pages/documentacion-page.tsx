@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Download, FilePlus, Loader2, Eye } from "lucide-react"
+import { CenteredLoader } from "@/components/ui/centered-loader"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
@@ -299,8 +300,8 @@ export default function DocumentacionPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary mb-2">Documentación</h1>
-        <p className="text-muted-foreground">Acceso a documentos y plantillas del sistema de gestión de TG</p>
+        <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Documentación</h1>
+        <p className="text-muted-foreground">Acceso a documentos generados del estudiante </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" className="gap-2" onClick={() => setShowNotaModal(true)}>
@@ -436,9 +437,7 @@ export default function DocumentacionPage() {
             </p>
           )}
           {filesLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
+            <CenteredLoader label="Cargando archivos..." />
           ) : files.length === 0 ? (
             <p className="text-sm text-muted-foreground">No hay archivos registrados para este tipo.</p>
           ) : (

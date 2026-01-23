@@ -53,7 +53,7 @@ export default function FlujogramaPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary mb-2">Flujograma del Proceso</h1>
+        <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Flujograma del Proceso</h1>
         <p className="text-muted-foreground">Visualización del proceso completo de trabajos de grado</p>
       </div>
 

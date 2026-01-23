@@ -46,7 +46,7 @@ export default function ManualPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary mb-2">Manual de Usuario</h1>
+        <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Manual de Usuario</h1>
         <p className="text-muted-foreground">Guía completa de uso del sistema SISTG</p>
       </div>
 

@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search } from "lucide-react"
+import { Search } from "lucide-react"
+import { CenteredLoader } from "@/components/ui/centered-loader"
 import { apiClient } from "@/lib/api-client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { hasAccess } from "@/lib/permissions"
@@ -20,13 +21,7 @@ export default function EstudiantesPage() {
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState("")
-  const [gestionFilter, setGestionFilter] = useState("") // Currently not in BasicInfo, maybe separate logic needed or removed if API handles it
-
-  // Note: The API defines filtering by 'search', 'especialidad', 'idSaga', 'isActive'.
-  // 'gestion' and 'semestre' might come from nested properties or separate API calls if needed.
-  // The provided GET /students response example has 'carrera' and 'semestre'. 
-  // We'll rely on client-side filtering or API params if available. 
-  // API docs say: query 'search', 'especialidad', 'idSaga', 'isActive'.
+  const [gestionFilter, setGestionFilter] = useState("")
 
   const userRoles = user?.roles?.map(r => r.name) || []
   const canView = hasAccess("estudiantes", userRoles)
@@ -57,7 +52,6 @@ export default function EstudiantesPage() {
     }
   }, [canView])
 
-  // Client-side filtering for search term if API search isn't enough or for quick feedback
   const filteredEstudiantes = useMemo(() => {
     return estudiantes.filter((est) => {
       const term = searchTerm.toLowerCase()
@@ -84,7 +78,7 @@ export default function EstudiantesPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-primary mb-2">Estudiantes</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-primary mb-2 dark:text-white">Estudiantes</h1>
         <p className="text-sm md:text-base text-muted-foreground">Listado completo de estudiantes registrados</p>
       </div>
 
@@ -116,9 +110,7 @@ export default function EstudiantesPage() {
       <Card>
         <CardContent className="pt-6">
           {loading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
+            <CenteredLoader label="Cargando estudiantes..." />
           ) : error ? (
             <div className="p-4 text-center text-red-500 bg-red-50 rounded-lg">{error}</div>
           ) : (

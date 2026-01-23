@@ -53,7 +53,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#004f9f" />
       </head>
       <body className={`${montserrat.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="sistg-theme">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} storageKey="sistg-theme">
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
         <Analytics />

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CenteredLoader } from "@/components/ui/centered-loader"
 import { Loader2, RefreshCw, Plus, UserCheck, Upload } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/contexts/auth-context"
@@ -863,9 +864,9 @@ export default function EntregasPage() {
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary mb-1">Cronograma de Entregas</h1>
+          <h1 className="text-3xl font-bold text-primary mb-1 dark:text-white">Entregas</h1>
           <p className="text-muted-foreground">
-            Gestión y visualización de las ventanas de entrega y revisiones.
+            Gestión y visualización de las cronograma de entrega y revisiones.
           </p>
         </div>
         <div className="flex gap-2">
@@ -947,9 +948,7 @@ export default function EntregasPage() {
             )}
 
             {(isStudent ? mySchedulesLoading || myDeliveriesLoading : pendingLoading) ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
+              <CenteredLoader label="Cargando entregas..." />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -988,7 +987,7 @@ export default function EntregasPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-primary hover:text-primary/80"
+                                className="text-white hover:text-cyan-600/80 bg-cyan-600 hover:bg-cyan-700"
                                 onClick={() => {
                                   setSelectedEntregaDetail({ entrega, cronograma })
                                   setShowEntregaDetail(true)
@@ -1032,9 +1031,7 @@ export default function EntregasPage() {
           {error && <div className="bg-red-50 text-red-600 p-4 rounded-md text-sm">{error}</div>}
 
           {loading && !entregas.length ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
+            <CenteredLoader label="Cargando cronogramas..." />
           ) : (
             <>
               <div className="overflow-x-auto">

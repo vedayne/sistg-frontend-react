@@ -410,7 +410,7 @@ export default function ConfiguracionesPage() {
     <div className="p-4 md:p-6 space-y-6 w-full">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Configuraciones</h1>
+          <h1 className="text-2xl font-bold text-primary dark:text-white">Configuraciones</h1>
           <p className="text-muted-foreground text-xs">Gestión general del sistema</p>
         </div>
         <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>

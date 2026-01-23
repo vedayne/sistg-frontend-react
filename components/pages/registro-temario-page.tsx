@@ -116,7 +116,7 @@ Para realizar cambios, consulte con su Docente de Trabajo de Grado.
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary mb-2">Registro de Temario</h1>
+        <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Registro de Temario</h1>
         <p className="text-muted-foreground">Completa tu temario tentativo según la modalidad de graduación</p>
       </div>
 

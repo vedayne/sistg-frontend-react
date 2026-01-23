@@ -108,7 +108,7 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
             <div className="space-y-2">
               {rolesList.map((role, idx) => (
                 <div key={idx} className="bg-muted/50 p-2 rounded text-xs border border-muted-foreground/10">
-                  <div className="font-medium text-primary mb-0.5">{role.name}</div>
+                  <div className="font-medium text-primary mb-0.5 dark:text-white">{role.name}</div>
                   <div className="text-muted-foreground">{role.description}</div>
                 </div>
               ))}

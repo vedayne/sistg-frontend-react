@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
+import { CenteredLoader } from "@/components/ui/centered-loader"
 import type { ProjectResponseDto, CreateProjectDto, ResearchLine, Gestion, EstudianteBasicInfo, DocenteBasicInfo, UserBasicInfo, Phase } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -734,7 +735,7 @@ export default function ProyectosPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-primary mb-2">Proyectos de Grado</h1>
+          <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Proyectos de Grado</h1>
           <p className="text-muted-foreground">Listado y gestión de proyectos activos</p>
         </div>
         <div className="flex items-center gap-2">
@@ -763,7 +764,7 @@ export default function ProyectosPage() {
       <Card>
         <CardContent className="pt-6">
           {loading ? (
-            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+            <CenteredLoader label="Cargando proyectos..." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -803,10 +804,10 @@ export default function ProyectosPage() {
                           <td className="p-3">
                             <div className="flex items-center gap-2">
                               <Button variant="ghost" size="icon" title="Ver Detalles" onClick={() => openDetail(p.id)}>
-                                <Eye className="w-4 h-4 text-primary" />
+                                <Eye className="w-4 h-4 text-primary dark:text-white" />
                               </Button>
                               <Button variant="ghost" size="icon" title="Temario" onClick={() => openTemario(p)}>
-                                <BookOpen className="w-4 h-4 text-primary" />
+                                <BookOpen className="w-4 h-4 text-primary dark:text-white" />
                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)} title="Eliminar">
                                 <Trash2 className="w-4 h-4 text-red-500" />

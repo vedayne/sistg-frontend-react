@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Spinner } from "@/components/ui/spinner"
+import { CenteredLoader } from "@/components/ui/centered-loader"
 import { Plus, X } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import type { Defensa, EstudianteBasicInfo, Phase, ProjectResponseDto } from "@/lib/types"
@@ -179,7 +179,7 @@ export default function DefensasPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary mb-2">Defensas</h1>
+          <h1 className="text-3xl font-bold text-primary mb-2 dark:text-white">Defensas</h1>
           <p className="text-muted-foreground">Gestión de defensas de trabajos de grado</p>
         </div>
         <Button
@@ -258,8 +258,8 @@ export default function DefensasPage() {
               <tbody>
                 {defensasLoading ? (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center">
-                      <Spinner />
+                    <td colSpan={8} className="py-6">
+                      <CenteredLoader label="Cargando defensas..." />
                     </td>
                   </tr>
                 ) : defensasError ? (
