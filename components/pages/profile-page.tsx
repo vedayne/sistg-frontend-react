@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { apiClient, API_BASE_URL } from "@/lib/api-client"
+import { apiClient } from "@/lib/api-client"
 import type { Semester } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ProfileImage } from "@/components/profile-image"
 
 export default function ProfilePage() {
   const {
@@ -36,14 +37,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"perfil" | "sesiones">("perfil")
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [uploadMessage, setUploadMessage] = useState("")
-  const [isLoadingProfileImage, setIsLoadingProfileImage] = useState(false)
   const [isFetchingSessions, setIsFetchingSessions] = useState(false)
   const [passwordData, setPasswordData] = useState({
     current: "",
     new: "",
     confirm: "",
   })
-  const [profileImage, setProfileImage] = useState<string | null>(null)
   const [copiedSessionId, setCopiedSessionId] = useState<string | null>(null)
   const [showPasswords, setShowPasswords] = useState({
     current: false,
@@ -61,61 +60,6 @@ export default function ProfilePage() {
   const [gestionMessage, setGestionMessage] = useState("")
   const [gestionError, setGestionError] = useState("")
   const isStudent = Boolean(user?.academico?.codAlumno)
-
-  useEffect(() => {
-    let objectUrl: string | null = null
-
-    const loadProfileImage = async () => {
-      setIsLoadingProfileImage(true)
-      const imageUrl = user?.imageUrl
-      try {
-        if (imageUrl) {
-          const isAbsolute = imageUrl.startsWith("http://") || imageUrl.startsWith("https://")
-          let shouldFetch = !isAbsolute
-          if (isAbsolute) {
-            try {
-              const apiOrigin = new URL(API_BASE_URL).origin
-              const imageOrigin = new URL(imageUrl).origin
-              shouldFetch = apiOrigin === imageOrigin
-            } catch {
-              shouldFetch = false
-            }
-          }
-          if (!shouldFetch) {
-            setProfileImage(imageUrl)
-            return
-          }
-          try {
-            const blob = await apiClient.profile.fetchImage(imageUrl)
-            if (blob) {
-              objectUrl = URL.createObjectURL(blob)
-              setProfileImage(objectUrl)
-            } else {
-              setProfileImage(null)
-            }
-            return
-          } catch (err) {
-            console.error("[v0] No se pudo obtener la foto de perfil:", err)
-          }
-        }
-
-        if (user?.fotoPerfil?.remotepath?.startsWith("http")) {
-          setProfileImage(user.fotoPerfil.remotepath)
-          return
-        }
-
-        setProfileImage(null)
-      } finally {
-        setIsLoadingProfileImage(false)
-      }
-    }
-
-    loadProfileImage()
-
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [user?.imageUrl, user?.fotoPerfil?.remotepath])
 
   useEffect(() => {
     if (!user || !isStudent) return
@@ -408,17 +352,13 @@ export default function ProfilePage() {
                 <CardTitle className="text-center">Foto de Perfil</CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-4">
-                <div className="relative inline-block">
-                  <img
-                    src={profileImage || "/placeholder.svg?height=200&width=200&query=profile"}
-                    alt="Perfil"
-                    className="w-40 h-40 rounded-lg object-cover border-4 border-primary/20"
-                  />
-                  {isLoadingProfileImage && (
-                    <div className="absolute inset-0 rounded-lg bg-background/70 flex items-center justify-center">
-                      <Spinner />
-                    </div>
-                  )}
+                <ProfileImage
+                  user={user}
+                  className="w-40 h-40 rounded-lg object-cover border-4 border-primary/20"
+                  containerClassName="relative inline-block"
+                  overlayClassName="rounded-lg"
+                  showLoader
+                >
                   <label className="absolute bottom-2 right-2 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90">
                     <Camera className="w-4 h-4" />
                     <input
@@ -429,9 +369,8 @@ export default function ProfilePage() {
                       disabled={isUploadingImage}
                     />
                   </label>
-                </div>
+                </ProfileImage>
                 {uploadMessage && <p className="text-xs text-green-600 dark:text-green-400">{uploadMessage}</p>}
-                {isLoadingProfileImage && <p className="text-xs text-muted-foreground">Cargando foto...</p>}
                 {isUploadingImage && <p className="text-xs text-muted-foreground">Subiendo foto...</p>}
                 <Button
                   onClick={() => setShowPasswordDialog(true)}

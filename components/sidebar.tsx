@@ -5,8 +5,9 @@ import { useAuth } from "@/contexts/auth-context"
 import { getAuthorizedMenuItems } from "@/lib/permissions"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ChevronUp, Shield, Menu, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronUp, ChevronLeft, ChevronRight } from "lucide-react"
 import logo from "@/public/logo-emi-postgrado.png"
+import { ProfileImage } from "@/components/profile-image"
 
 interface SidebarProps {
   currentPage: string
@@ -60,11 +61,10 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
             <button
               key={item.id}
               onClick={() => onPageChange(item.id)}
-              className={`w-full text-left rounded-lg transition-all font-medium flex items-center ${
-                isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3 gap-3'
-              } ${currentPage === item.id
-                ? "bg-secondary text-secondary-foreground shadow-md"
-                : "hover:bg-primary/80 text-primary-foreground/90 hover:text-primary-foreground"
+              className={`w-full text-left rounded-lg transition-all font-medium flex items-center ${isCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-3 gap-3'
+                } ${currentPage === item.id
+                  ? "bg-secondary text-secondary-foreground shadow-md"
+                  : "hover:bg-primary/80 text-primary-foreground/90 hover:text-primary-foreground"
                 }`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -83,12 +83,14 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
       <div className="p-4 border-t border-primary/20 bg-primary/50">
         <Popover>
           <PopoverTrigger asChild>
-            <button className={`w-full flex items-center hover:bg-primary/40 p-2 rounded-md transition-colors group ${
-              isCollapsed ? 'justify-center' : 'gap-3 text-left'
-            }`}>
-              <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center text-secondary-foreground shrink-0">
-                <Shield className="w-4 h-4" />
-              </div>
+            <button className={`w-full flex items-center hover:bg-primary/40 p-2 rounded-md transition-colors group ${isCollapsed ? 'justify-center' : 'gap-3 text-left'
+              }`}>
+              <ProfileImage
+                user={user}
+                className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center text-secondary-foreground shrink-0"
+                containerClassName="relative"
+                overlayClassName="rounded-full"
+              />
               {!isCollapsed && (
                 <>
                   <div className="flex-1 overflow-hidden">
@@ -119,4 +121,3 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
     </aside>
   )
 }
-
