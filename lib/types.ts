@@ -161,13 +161,20 @@ export interface Entrega {
 
 export interface Defensa {
   id: number
-  numero: number
+  idFase: number
   fase: string
-  proyecto: string
-  estudiante: string
-  notaReferencial: number
-  miembroTribunal: string
-  observacion: string
+  proyecto: {
+    id: number
+    titulo: string
+  }
+  estudiante: {
+    id: number
+    nombreCompleto: string
+  }
+  notaReferencial?: string | null
+  observaciones?: string | null
+  tribunal?: string | null
+  createdAt: string
 }
 
 export interface UnidadAcademica {

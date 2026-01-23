@@ -17,6 +17,7 @@ import type {
   StudentDocumentsResponse,
   DocumentInfo,
   Pagination,
+  Defensa,
 } from "./types"
 
 // const API_BASE_URL = "https://sistg-backend.onrender.com/rtg"
@@ -555,6 +556,28 @@ export const apiClient = {
       apiClient.request<{ message: string; data: Phase }>(`/phases/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ name }),
+      }),
+  },
+
+  defensas: {
+    list: async (params?: { search?: string; idFase?: number }) => {
+      const query = new URLSearchParams()
+      if (params?.search) query.append("search", params.search)
+      if (params?.idFase) query.append("idFase", params.idFase.toString())
+      const qs = query.toString()
+      return apiClient.request<Defensa[]>(`/defensas${qs ? `?${qs}` : ""}`, {})
+    },
+    get: async (id: number) => apiClient.request<Defensa>(`/defensas/${id}`, {}),
+    create: async (data: {
+      idFase: number
+      idEstudiante: number
+      idProyecto: number
+      notaReferencial?: string
+      observaciones?: string
+    }) =>
+      apiClient.request<{ message: string; data: Defensa }>("/defensas", {
+        method: "POST",
+        body: JSON.stringify(data),
       }),
   },
 
