@@ -1,19 +1,4 @@
-import {
-    BookOpen,
-    FileText,
-    Settings,
-    BarChart3,
-    Users,
-    HelpCircle,
-    Zap,
-    FolderOpen,
-    type LucideIcon,
-    Home,
-    ShieldCheck,
-} from "lucide-react"
-
-// Define all possible roles in the system
-// STRICTLY matching user provided identifiers
+import { BookOpen, FileText, Settings, BarChart3, Users, HelpCircle, Zap, FolderOpen, type LucideIcon, Home, ShieldCheck, } from "lucide-react";
 export enum UserRole {
     ADMIN = "ADMIN",
     UTIC = "UTIC",
@@ -24,24 +9,17 @@ export enum UserRole {
     JEFECARRERA = "JEFECARRERA",
     DDE = "DDE",
     SECRETARIA = "SECRETARIA",
-    INVITADO = "INVITADO",
-    // Legacy support or if backend sends variations, mapped in getAuthorizedMenuItems?
-    // User explicitly said: identificador: ADMIN, ESTUDIANTE, etc.
+    INVITADO = "INVITADO"
 }
-
 export interface MenuItem {
-    id: string
-    label: string
-    icon: LucideIcon
-    description: string
-    roles: UserRole[] // Allowed roles
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    description: string;
+    roles: UserRole[];
 }
-
-// Helper to group roles
-const ALL_ROLES = Object.values(UserRole)
-const ADMIN_ROLES = [UserRole.ADMIN, UserRole.UTIC]
-
-// All available menu items with their allowed roles based on user request
+const ALL_ROLES = Object.values(UserRole);
+const ADMIN_ROLES = [UserRole.ADMIN, UserRole.UTIC];
 export const MENU_ITEMS: MenuItem[] = [
     {
         id: "perfil",
@@ -196,31 +174,17 @@ export const MENU_ITEMS: MenuItem[] = [
         description: "Proceso",
         roles: ALL_ROLES,
     },
-]
-
-/**
- * Returns the list of menu items authorized for a given list of user roles.
- */
+];
 export function getAuthorizedMenuItems(userRoles: string[] = []): MenuItem[] {
-    // Normalize checking: The backend sends strings like "ADMIN", "ESTUDIANTE".
-    // We ensure we match them against our enum values.
-
-    // Create a Set of allowed roles for the user for O(1) lookup
-    // We map to upper case just in case, but assume identifiers are consistent.
     const userRoleSet = new Set(userRoles.map(r => r.toUpperCase()));
-
     return MENU_ITEMS.filter((item) => {
-        // Check if ANY of the item's allowed roles is held by the user
         return item.roles.some((allowedRole) => userRoleSet.has(allowedRole));
-    })
+    });
 }
-
-/**
- * Checks if a user has permission to access a specific page/module ID
- */
 export function hasAccess(pageId: string, userRoles: string[] = []): boolean {
-    const item = MENU_ITEMS.find((i) => i.id === pageId)
-    if (!item) return false
+    const item = MENU_ITEMS.find((i) => i.id === pageId);
+    if (!item)
+        return false;
     const userRoleSet = new Set(userRoles.map(r => r.toUpperCase()));
-    return item.roles.some((allowedRole) => userRoleSet.has(allowedRole))
+    return item.roles.some((allowedRole) => userRoleSet.has(allowedRole));
 }

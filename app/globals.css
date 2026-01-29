@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Paleta corporativa: Azul #004F9F, Amarillo #FFDD00 */
+  
   --background: #f6f8fb;
   --foreground: #0c1c2f;
   --card: #ffffff;
@@ -37,7 +37,7 @@
   --chart-5: #132b4a;
   --radius: 0.625rem;
 
-  /* Sidebar */
+  
   --sidebar: #0b2f63;
   --sidebar-foreground: #f8fbff;
   --sidebar-primary: #ffdd00;
@@ -49,7 +49,7 @@
 }
 
 .dark {
-  /* Modo oscuro solicitado: gris #DFEAF8, azul #003D7C, amarillo #EAB500 */
+  
   --background: #0a1b35;
   --foreground: #dfeaf8;
   --card: #0f274d;
@@ -92,7 +92,7 @@
 }
 
 @theme inline {
-  /* Tipografías corporativas EMI: Helvetica y Montserrat */
+  
   --font-sans: "Montserrat", "Segoe UI", sans-serif;
   --font-serif: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Geist Mono", "Courier New", monospace;
@@ -145,7 +145,7 @@
 }
 
 @layer utilities {
-  /* Scroll personalizado para sidebar y otros elementos */
+  
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

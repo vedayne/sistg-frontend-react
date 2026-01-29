@@ -1,70 +1,61 @@
-"use client"
-
-import type React from "react"
-import { useState } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff } from "lucide-react"
-
+"use client";
+import type React from "react";
+import { useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff } from "lucide-react";
 export default function PasswordChangeModal() {
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const { updatePassword, user } = useAuth()
-
-  if (!user?.mustChangePassword) {
-    return null
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setSuccess("")
-
-    if (newPassword !== confirmPassword) {
-      setError("Las contraseñas no coinciden")
-      return
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { updatePassword, user } = useAuth();
+    if (!user?.mustChangePassword) {
+        return null;
     }
-
-    if (newPassword.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres")
-      return
-    }
-
-    if (newPassword === currentPassword) {
-      setError("La nueva contraseña debe ser diferente a la actual")
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      await updatePassword(currentPassword, newPassword)
-      setSuccess("Contraseña actualizada exitosamente")
-      setTimeout(() => {
-        setCurrentPassword("")
-        setNewPassword("")
-        setConfirmPassword("")
-      }, 1500)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al cambiar contraseña"
-      setError(message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return (
-    <Dialog open={true}>
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        setSuccess("");
+        if (newPassword !== confirmPassword) {
+            setError("Las contraseñas no coinciden");
+            return;
+        }
+        if (newPassword.length < 6) {
+            setError("La contraseña debe tener al menos 6 caracteres");
+            return;
+        }
+        if (newPassword === currentPassword) {
+            setError("La nueva contraseña debe ser diferente a la actual");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            await updatePassword(currentPassword, newPassword);
+            setSuccess("Contraseña actualizada exitosamente");
+            setTimeout(() => {
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+            }, 1500);
+        }
+        catch (err) {
+            const message = err instanceof Error ? err.message : "Error al cambiar contraseña";
+            setError(message);
+        }
+        finally {
+            setIsLoading(false);
+        }
+    };
+    return (<Dialog open={true}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-primary">Cambio de Contraseña Requerido</DialogTitle>
@@ -72,36 +63,20 @@ export default function PasswordChangeModal() {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
+          {error && (<Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            </Alert>)}
 
-          {success && (
-            <Alert className="bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-800">
+          {success && (<Alert className="bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-800">
               <AlertDescription className="text-green-800 dark:text-green-200">{success}</AlertDescription>
-            </Alert>
-          )}
+            </Alert>)}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Contraseña Actual</label>
             <div className="relative">
-              <Input
-                type={showCurrentPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <Input type={showCurrentPassword ? "text" : "password"} placeholder="••••••••" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required disabled={isLoading} className="pr-10"/>
+              <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                {showCurrentPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
               </button>
             </div>
           </div>
@@ -109,21 +84,9 @@ export default function PasswordChangeModal() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Nueva Contraseña</label>
             <div className="relative">
-              <Input
-                type={showNewPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <Input type={showNewPassword ? "text" : "password"} placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required disabled={isLoading} className="pr-10"/>
+              <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                {showNewPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
               </button>
             </div>
           </div>
@@ -131,21 +94,9 @@ export default function PasswordChangeModal() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Confirmar Contraseña</label>
             <div className="relative">
-              <Input
-                type={showConfirmPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <Input type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required disabled={isLoading} className="pr-10"/>
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                {showConfirmPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
               </button>
             </div>
           </div>
@@ -155,6 +106,5 @@ export default function PasswordChangeModal() {
           </Button>
         </form>
       </DialogContent>
-    </Dialog>
-  )
+    </Dialog>);
 }
