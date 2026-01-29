@@ -56,41 +56,42 @@ const unidadesAcademicas = [
         web: "www.emi.edu.bo",
     },
 ];
+const CAROUSEL_IMAGES = [
+    {
+        id: 1,
+        title: "EMI - Excelencia Académica",
+        query: "university engineering campus modern education",
+        name: "sistg-01.jpg",
+    },
+    {
+        id: 2,
+        title: "Trabajos de Grado",
+        query: "graduation thesis research project academic work",
+        name: "sistg-02.jpg",
+    },
+    {
+        id: 3,
+        title: "Innovación Tecnológica",
+        query: "technology innovation engineering research lab",
+        name: "sistg-03.jpg",
+    },
+    {
+        id: 4,
+        title: "Formación de Ingenieros",
+        query: "engineering education students learning technology",
+        name: "sistg-04.jpg",
+    },
+    { id: 5, title: "Sistema SISTG", query: "management system organization digital platform", name: "sistg-05.jpg" },
+];
+const TOTAL_CAROUSEL_IMAGES = CAROUSEL_IMAGES.length;
 export default function HomePage() {
     const router = useRouter();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showScrollButton, setShowScrollButton] = useState(false);
-    const [year, setYear] = useState(new Date().getFullYear());
-    const carouselImages = [
-        {
-            id: 1,
-            title: "EMI - Excelencia Académica",
-            query: "university engineering campus modern education",
-            name: "sistg-01.jpg",
-        },
-        {
-            id: 2,
-            title: "Trabajos de Grado",
-            query: "graduation thesis research project academic work",
-            name: "sistg-02.jpg",
-        },
-        {
-            id: 3,
-            title: "Innovación Tecnológica",
-            query: "technology innovation engineering research lab",
-            name: "sistg-03.jpg",
-        },
-        {
-            id: 4,
-            title: "Formación de Ingenieros",
-            query: "engineering education students learning technology",
-            name: "sistg-04.jpg",
-        },
-        { id: 5, title: "Sistema SISTG", query: "management system organization digital platform", name: "sistg-05.jpg" },
-    ];
+    const year = new Date().getFullYear();
     useEffect(() => {
         const interval = setInterval(() => {
-            setCurrentImageIndex((prev) => (prev + 1) % carouselImages.length);
+            setCurrentImageIndex((prev) => (prev + 1) % TOTAL_CAROUSEL_IMAGES);
         }, 5000);
         return () => clearInterval(interval);
     }, []);
@@ -126,7 +127,7 @@ export default function HomePage() {
 
       <section className="relative h-96 md:h-[500px] overflow-hidden">
         <div className="flex transition-transform duration-1000 h-full" style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}>
-          {carouselImages.map((img) => (<div key={img.id} className="min-w-full h-full relative">
+          {CAROUSEL_IMAGES.map((img) => (<div key={img.id} className="min-w-full h-full relative">
               <img src={`/${img.name}?key=wxaun&height=500&width=1200&query=${encodeURIComponent(img.title)}`} alt={img.title} className="w-full h-full object-cover"/>
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                 <h3 className="text-2xl md:text-4xl font-bold text-white text-center">{img.title}</h3>
@@ -135,16 +136,16 @@ export default function HomePage() {
         </div>
 
         
-        <button onClick={() => setCurrentImageIndex((prev) => (prev - 1 + carouselImages.length) % carouselImages.length)} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full z-10 transition-colors">
+        <button onClick={() => setCurrentImageIndex((prev) => (prev - 1 + TOTAL_CAROUSEL_IMAGES) % TOTAL_CAROUSEL_IMAGES)} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full z-10 transition-colors">
           <ChevronLeft className="w-6 h-6 text-primary"/>
         </button>
-        <button onClick={() => setCurrentImageIndex((prev) => (prev + 1) % carouselImages.length)} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full z-10 transition-colors">
+        <button onClick={() => setCurrentImageIndex((prev) => (prev + 1) % TOTAL_CAROUSEL_IMAGES)} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full z-10 transition-colors">
           <ChevronRight className="w-6 h-6 text-primary"/>
         </button>
 
         
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-          {carouselImages.map((_, idx) => (<button key={idx} onClick={() => setCurrentImageIndex(idx)} className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? "bg-white w-8" : "bg-white/50"}`}/>))}
+          {CAROUSEL_IMAGES.map((_, idx) => (<button key={idx} onClick={() => setCurrentImageIndex(idx)} className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? "bg-white w-8" : "bg-white/50"}`}/>))}
         </div>
       </section>
 

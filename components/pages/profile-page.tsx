@@ -1,6 +1,6 @@
 "use client";
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { apiClient } from "@/lib/api-client";
 import type { Semester } from "@/lib/types";
@@ -98,12 +98,7 @@ export default function ProfilePage() {
             setSelectedGestionType("");
         }
     }, [user, isStudent, user?.academico?.gestionActual]);
-    useEffect(() => {
-        if (activeTab === "sesiones") {
-            fetchSessionsWithLoading();
-        }
-    }, [activeTab]);
-    const fetchSessionsWithLoading = async () => {
+    const fetchSessionsWithLoading = useCallback(async () => {
         setIsFetchingSessions(true);
         try {
             await fetchSessions();
@@ -111,7 +106,12 @@ export default function ProfilePage() {
         finally {
             setIsFetchingSessions(false);
         }
-    };
+    }, [fetchSessions]);
+    useEffect(() => {
+        if (activeTab === "sesiones") {
+            fetchSessionsWithLoading();
+        }
+    }, [activeTab, fetchSessionsWithLoading]);
     const handleLogoutAllDevices = async () => {
         if (confirm("¿Estás seguro de que quieres cerrar todas las sesiones en otros dispositivos?")) {
             setIsLoggingOut(true);

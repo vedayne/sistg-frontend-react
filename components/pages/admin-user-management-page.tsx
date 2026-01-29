@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,13 +141,19 @@ export default function AdminUserManagementPage() {
         }, 350);
         return () => clearTimeout(handler);
     }, [page, limit, searchTerm, searchEmail, fetchUsuarios]);
-    const filteredUsuarios = usuarios.filter((u) => {
-        if (statusFilter && u.status !== statusFilter)
-            return false;
-        if (roleFilter && !u.roles?.includes(roleFilter))
-            return false;
-        return true;
-    });
+    const normalizedStatusFilter = statusFilter === "all" ? "" : statusFilter;
+    const normalizedRoleFilter = roleFilter === "all" ? "" : roleFilter;
+    const filteredUsuarios = useMemo(() => {
+        if (!normalizedStatusFilter && !normalizedRoleFilter)
+            return usuarios;
+        return usuarios.filter((u) => {
+            if (normalizedStatusFilter && u.status !== normalizedStatusFilter)
+                return false;
+            if (normalizedRoleFilter && !u.roles?.includes(normalizedRoleFilter))
+                return false;
+            return true;
+        });
+    }, [usuarios, normalizedStatusFilter, normalizedRoleFilter]);
     const handleClearFilters = () => {
         setSearchTerm("");
         setSearchEmail("");

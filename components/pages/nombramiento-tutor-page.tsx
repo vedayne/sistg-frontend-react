@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +32,13 @@ export default function NombramientoTutorPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [isLoadingTutors, setIsLoadingTutors] = useState(false);
     const [tutorError, setTutorError] = useState<string | null>(null);
-    const filteredTutors = tutors.filter((t) => t.nombre.toLowerCase().includes(tutorSearch.toLowerCase()) ||
-        t.email.toLowerCase().includes(tutorSearch.toLowerCase()));
+    const normalizedTutorSearch = tutorSearch.trim().toLowerCase();
+    const filteredTutors = useMemo(() => {
+        if (!normalizedTutorSearch)
+            return tutors;
+        return tutors.filter((t) => t.nombre.toLowerCase().includes(normalizedTutorSearch) ||
+            t.email.toLowerCase().includes(normalizedTutorSearch));
+    }, [tutors, normalizedTutorSearch]);
     useEffect(() => {
         const handler = setTimeout(() => {
             ;
